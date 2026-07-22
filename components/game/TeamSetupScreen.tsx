@@ -101,7 +101,7 @@ function TeamLists({ players }: { players: Player[] }) {
           {blue.map((p) => (
             <li key={p.id}>{p.nickname}</li>
           ))}
-          {blue.length === 0 && <li className="text-blue-deep/40">—</li>}
+          {blue.length === 0 && <li className="text-blue-deep/40">--</li>}
         </ul>
       </Card>
       <Card tone="yellow">
@@ -110,7 +110,7 @@ function TeamLists({ players }: { players: Player[] }) {
           {yellow.map((p) => (
             <li key={p.id}>{p.nickname}</li>
           ))}
-          {yellow.length === 0 && <li className="text-ink/40">—</li>}
+          {yellow.length === 0 && <li className="text-ink/40">--</li>}
         </ul>
       </Card>
     </div>
@@ -133,10 +133,14 @@ function ManualTeamPicker({
   );
   const [isPending, startTransition] = useTransition();
 
+  function getTeam(playerId: string): Team {
+    return assignments[playerId] ?? "blue";
+  }
+
   function toggle(playerId: string) {
     setAssignments((current) => ({
       ...current,
-      [playerId]: current[playerId] === "blue" ? "yellow" : "blue",
+      [playerId]: getTeam(playerId) === "blue" ? "yellow" : "blue",
     }));
   }
 
@@ -145,7 +149,7 @@ function ManualTeamPicker({
       await assignTeamsManual(
         gameId,
         hostPlayerId,
-        players.map((p) => ({ playerId: p.id, team: assignments[p.id] }))
+        players.map((p) => ({ playerId: p.id, team: getTeam(p.id) }))
       );
     });
   }
@@ -157,7 +161,7 @@ function ManualTeamPicker({
       </p>
       <ul className="flex flex-col gap-2">
         {players.map((player) => {
-          const team = assignments[player.id];
+          const team = getTeam(player.id);
           return (
             <li key={player.id}>
               <button
