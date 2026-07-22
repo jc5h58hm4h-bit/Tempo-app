@@ -62,7 +62,10 @@ export function WaitingRoom({
 
   function handleToggleReady() {
     if (!currentPlayer) return;
-    startReadyTransition(() => setPlayerReady(currentPlayer.id, !currentPlayer.isReady));
+    const nextReady = !currentPlayer.isReady;
+    startReadyTransition(async () => {
+      await setPlayerReady(currentPlayer.id, nextReady);
+    });
   }
 
   function handleStart() {
