@@ -177,13 +177,17 @@ function RemoveWordButton({
 }) {
   const [isPending, startTransition] = useTransition();
 
+  function handleRemove() {
+    startTransition(async () => {
+      await removeWord(gameId, hostPlayerId, wordId);
+    });
+  }
+
   return (
     <button
       aria-label="Supprimer le mot"
       disabled={isPending}
-      onClick={() =>
-        startTransition(() => removeWord(gameId, hostPlayerId, wordId))
-      }
+      onClick={handleRemove}
       className="ml-2 text-ink/40 hover:text-red-600 disabled:opacity-40"
     >
       ✕
