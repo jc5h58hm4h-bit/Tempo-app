@@ -27,8 +27,8 @@ export function nextPlayerInOrder(
   currentPlayerId: string | null
 ): Player | null {
   if (order.length === 0) return null;
-  if (!currentPlayerId) return order[0];
+  if (!currentPlayerId) return order[0] ?? null;
   const currentIndex = order.findIndex((p) => p.id === currentPlayerId);
-  if (currentIndex === -1) return order[0];
-  return order[(currentIndex + 1) % order.length];
+  if (currentIndex === -1) return order[0] ?? null;
+  return order[(currentIndex + 1) % order.length] ?? null;
 }
