@@ -1,6 +1,5 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   reactStrictMode: true,
   // L'app est une PWA : on garde la config Next minimale et on gère
   // le manifest + service worker manuellement dans /public (voir Partie 5).
