@@ -70,7 +70,10 @@ export function PlayingScreen({
 
   function handlePass() {
     if (!currentWord || isBlockedRef.current || queue.length <= 1) return;
-    setQueue((q) => [...q.slice(1), q[0]]);
+    setQueue((q) => {
+      const [first, ...rest] = q;
+      return first ? [...rest, first] : q;
+    });
   }
 
   return (
