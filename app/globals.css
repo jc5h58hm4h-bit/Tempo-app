@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
+/* Respecte l'encoche / Dynamic Island / barre d'accueil iOS */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Empêche le zoom involontaire sur double-tap sur les zones de jeu */
+.no-select {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
