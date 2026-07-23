@@ -18,3 +18,9 @@ export const TEAM_LABELS = {
   blue: "Équipe bleue",
   yellow: "Équipe jaune",
 } as const;
+
+/**
+ * Liste de pseudos prédéfinis proposés à l'accueil, pour aller plus vite
+ * plutôt que de taper son prénom à chaque partie.
+ */
+export const PRESET_NICKNAMES = ["Florian", "Guillaume", "Pierre", "Antoine", "Camille"];
