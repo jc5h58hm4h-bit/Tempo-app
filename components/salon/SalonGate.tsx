@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getPlayerSession } from "@/lib/session";
+import { getPlayerSession, savePlayerSession } from "@/lib/session";
 import { WaitingRoom } from "@/components/salon/WaitingRoom";
 import { Button } from "@/components/ui/Button";
 import type { Game, Player, Word } from "@/types";
@@ -19,6 +19,12 @@ interface SalonGateProps {
  * locale pour cette partie (identifiant temporaire stocké au moment de la
  * création/connexion). C'est ce qui permet de retrouver son profil après
  * un rechargement de page (voir section 11 du cahier des charges).
+ *
+ * Si le stockage local est vide (ex: le lien a été ouvert dans le
+ * mini-navigateur de l'app Messages, dont le stockage est isolé de Safari),
+ * on se rabat sur l'identifiant de joueur transmis dans l'URL (paramètre
+ * ?p=) au moment de la redirection depuis l'accueil, et on le réenregistre
+ * localement pour la suite.
  */
 export function SalonGate({ code, initialGame, initialPlayers, initialWords }: SalonGateProps) {
   const router = useRouter();
@@ -27,9 +33,26 @@ export function SalonGate({ code, initialGame, initialPlayers, initialWords }: S
 
   useEffect(() => {
     const session = getPlayerSession(code);
-    setPlayerId(session?.playerId ?? null);
+    let resolvedPlayerId = session?.playerId ?? null;
+
+    if (!resolvedPlayerId && typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const fromUrl = params.get("p");
+      const matchingPlayer = fromUrl
+        ? initialPlayers.find((p) => p.id === fromUrl)
+        : undefined;
+      if (matchingPlayer) {
+        resolvedPlayerId = matchingPlayer.id;
+        savePlayerSession(code, {
+          playerId: matchingPlayer.id,
+          nickname: matchingPlayer.nickname,
+        });
+      }
+    }
+
+    setPlayerId(resolvedPlayerId);
     setChecked(true);
-  }, [code]);
+  }, [code, initialPlayers]);
 
   const playerStillInGame =
     playerId !== null && initialPlayers.some((p) => p.id === playerId);
