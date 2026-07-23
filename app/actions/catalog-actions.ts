@@ -5,7 +5,7 @@ import { isDuplicateWord } from "@/lib/game-rules";
 import { shuffleArray } from "@/lib/utils";
 import { CATALOG_REPEAT_EXCLUSION_GAMES } from "@/lib/catalog";
 import type { ActionResult } from "@/lib/action-result";
-import type { CatalogCategory } from "@/lib/catalog";
+import type { CatalogCategory, CatalogDifficulty } from "@/lib/catalog";
 
 async function assertIsHost(
   supabase: ReturnType<typeof getSupabaseServerClient>,
@@ -27,16 +27,17 @@ interface PickResult {
 
 /**
  * Pioche des mots aléatoires dans le catalogue partagé, pour les catégories
- * choisies par l'hôte, en excluant en priorité les mots déjà utilisés dans
- * l'une des CATALOG_REPEAT_EXCLUSION_GAMES dernières parties ayant pioché
- * dans le catalogue. Si le nombre de mots "frais" disponibles est
- * insuffisant, complète avec les mots les plus anciennement réutilisés
- * plutôt que d'échouer.
+ * ET les niveaux de difficulté choisis par l'hôte, en excluant en priorité
+ * les mots déjà utilisés dans l'une des CATALOG_REPEAT_EXCLUSION_GAMES
+ * dernières parties ayant pioché dans le catalogue. Si le nombre de mots
+ * "frais" disponibles est insuffisant, complète avec les mots les plus
+ * anciennement réutilisés plutôt que d'échouer.
  */
 export async function pickWordsFromCatalog(
   gameId: string,
   hostPlayerId: string,
   categories: CatalogCategory[],
+  difficulties: CatalogDifficulty[],
   count: number
 ): Promise<ActionResult<PickResult>> {
   const supabase = getSupabaseServerClient();
@@ -46,6 +47,9 @@ export async function pickWordsFromCatalog(
   }
   if (categories.length === 0) {
     return { success: false, error: "Choisis au moins une catégorie." };
+  }
+  if (difficulties.length === 0) {
+    return { success: false, error: "Choisis au moins un niveau de difficulté." };
   }
 
   // 1. Détermine les mots à éviter : ceux utilisés dans l'une des N
@@ -72,11 +76,12 @@ export async function pickWordsFromCatalog(
       .map((row) => row.word_id)
   );
 
-  // 2. Récupère les mots du catalogue pour les catégories choisies.
+  // 2. Récupère les mots du catalogue pour les catégories ET difficultés choisies.
   const { data: catalogWords, error: catalogError } = await supabase
     .from("catalog_words")
     .select("id, content")
-    .in("category", categories);
+    .in("category", categories)
+    .in("difficulty", difficulties);
 
   if (catalogError) {
     return { success: false, error: "Impossible de charger le catalogue." };
@@ -107,7 +112,7 @@ export async function pickWordsFromCatalog(
   if (selected.length === 0) {
     return {
       success: false,
-      error: "Aucun mot disponible dans ces catégories pour le moment.",
+      error: "Aucun mot disponible pour cette combinaison catégories/difficulté.",
     };
   }
 
