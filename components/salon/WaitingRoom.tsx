@@ -45,9 +45,9 @@ export function WaitingRoom({
   // l'écran de constitution des équipes / de jeu.
   useEffect(() => {
     if (game.status !== "lobby") {
-      router.push(`/partie/${game.code}`);
+      router.push(`/partie/${game.code}?p=${currentPlayerId}`);
     }
-  }, [game.status, game.code, router]);
+  }, [game.status, game.code, currentPlayerId, router]);
 
   const currentPlayer = players.find((p) => p.id === currentPlayerId);
   const isHost = game.hostPlayerId === currentPlayerId;
