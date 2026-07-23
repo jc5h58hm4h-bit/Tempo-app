@@ -6,10 +6,12 @@ import { pickWordsFromCatalog } from "@/app/actions/catalog-actions";
 import {
   CATALOG_CATEGORIES,
   CATALOG_CATEGORY_LABELS,
+  CATALOG_DIFFICULTIES,
+  CATALOG_DIFFICULTY_LABELS,
   CATALOG_WORD_COUNT_OPTIONS,
   CATALOG_REPEAT_EXCLUSION_GAMES,
 } from "@/lib/catalog";
-import type { CatalogCategory } from "@/lib/catalog";
+import type { CatalogCategory, CatalogDifficulty } from "@/lib/catalog";
 
 export function CatalogPicker({
   gameId,
@@ -19,6 +21,9 @@ export function CatalogPicker({
   hostPlayerId: string;
 }) {
   const [selectedCategories, setSelectedCategories] = useState<CatalogCategory[]>([]);
+  const [selectedDifficulties, setSelectedDifficulties] = useState<CatalogDifficulty[]>([
+    "facile",
+  ]);
   const [count, setCount] = useState<number>(20);
   const [feedback, setFeedback] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
@@ -31,6 +36,14 @@ export function CatalogPicker({
     );
   }
 
+  function toggleDifficulty(difficulty: CatalogDifficulty) {
+    setSelectedDifficulties((current) =>
+      current.includes(difficulty)
+        ? current.filter((d) => d !== difficulty)
+        : [...current, difficulty]
+    );
+  }
+
   function handlePick() {
     setFeedback(undefined);
     startTransition(async () => {
@@ -38,6 +51,7 @@ export function CatalogPicker({
         gameId,
         hostPlayerId,
         selectedCategories,
+        selectedDifficulties,
         count
       );
       if (!result.success) {
@@ -66,23 +80,52 @@ export function CatalogPicker({
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {CATALOG_CATEGORIES.map((category) => {
-          const isSelected = selectedCategories.includes(category);
-          return (
-            <button
-              key={category}
-              onClick={() => toggleCategory(category)}
-              className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-                isSelected
-                  ? "bg-blue-deep text-cream"
-                  : "bg-ink/5 text-ink/60"
-              }`}
-            >
-              {CATALOG_CATEGORY_LABELS[category]}
-            </button>
-          );
-        })}
+      <div>
+        <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-ink/40">
+          Catégories
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {CATALOG_CATEGORIES.map((category) => {
+            const isSelected = selectedCategories.includes(category);
+            return (
+              <button
+                key={category}
+                onClick={() => toggleCategory(category)}
+                className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+                  isSelected
+                    ? "bg-blue-deep text-cream"
+                    : "bg-ink/5 text-ink/60"
+                }`}
+              >
+                {CATALOG_CATEGORY_LABELS[category]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-ink/40">
+          Difficulté
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {CATALOG_DIFFICULTIES.map((difficulty) => {
+            const isSelected = selectedDifficulties.includes(difficulty);
+            return (
+              <button
+                key={difficulty}
+                onClick={() => toggleDifficulty(difficulty)}
+                className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+                  isSelected
+                    ? "bg-yellow-vivid text-ink"
+                    : "bg-ink/5 text-ink/60"
+                }`}
+              >
+                {CATALOG_DIFFICULTY_LABELS[difficulty]}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
@@ -108,7 +151,7 @@ export function CatalogPicker({
         variant="secondary"
         size="md"
         onClick={handlePick}
-        disabled={isPending || selectedCategories.length === 0}
+        disabled={isPending || selectedCategories.length === 0 || selectedDifficulties.length === 0}
       >
         {isPending ? "Pioche en cours..." : "Piocher des mots"}
       </Button>
