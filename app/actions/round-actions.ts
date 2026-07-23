@@ -34,6 +34,48 @@ function mapPlayer(row: any): Player {
   };
 }
 
+/**
+ * Retrouve l'équipe qui a trouvé le tout dernier mot d'une manche donnée
+ * (celle qui a "terminé" la manche). Renvoie null si indéterminable
+ * (ex: aucun mot trouvé, ou manche introuvable).
+ */
+async function determineFinishingTeam(
+  supabase: ReturnType<typeof getSupabaseServerClient>,
+  gameId: string,
+  roundNumber: number | null
+): Promise<Team | null> {
+  if (!roundNumber) return null;
+
+  const { data: round } = await supabase
+    .from("rounds")
+    .select("id")
+    .eq("game_id", gameId)
+    .eq("round_number", roundNumber)
+    .maybeSingle();
+  if (!round) return null;
+
+  const { data: lastGuess } = await supabase
+    .from("guessed_words")
+    .select("turn_id")
+    .eq("round_id", round.id)
+    .order("guessed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!lastGuess) return null;
+
+  const { data: turn } = await supabase
+    .from("turns")
+    .select("team")
+    .eq("id", lastGuess.turn_id)
+    .maybeSingle();
+
+  return (turn?.team as Team | undefined) ?? null;
+}
+
+function opposingTeam(team: Team): Team {
+  return team === "blue" ? "yellow" : "blue";
+}
+
 // --- Équipes ---------------------------------------------------------
 
 /**
@@ -409,7 +451,14 @@ export async function startNextRound(
     .order("joined_at");
   const players = (playerRows ?? []).map(mapPlayer);
   const order = buildTurnOrder(players);
-  const first = order[0];
+
+  // L'équipe qui a trouvé le dernier mot de la manche précédente ne doit
+  // pas démarrer la manche suivante : c'est à l'équipe adverse de commencer.
+  const finishingTeam = await determineFinishingTeam(supabase, gameId, game.current_round);
+  const startingTeam = finishingTeam ? opposingTeam(finishingTeam) : null;
+  const first =
+    (startingTeam ? order.find((p) => p.team === startingTeam) : undefined) ?? order[0];
+
   if (!first || !first.team) {
     return { success: false, error: "Impossible de déterminer le premier joueur." };
   }
