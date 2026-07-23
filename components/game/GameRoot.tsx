@@ -66,8 +66,6 @@ export function GameRoot({
 
   // Redirige vers le salon si, pour une raison quelconque, la partie
   // n'a pas (ou plus) démarré (ex: rechargement avant le lancement).
-  // Le paramètre ?p= permet de retrouver le joueur même si le stockage
-  // local a été perdu (ex: changement de navigateur depuis un lien SMS).
   useEffect(() => {
     if (game.status === "lobby") {
       router.replace(`/salon/${game.code}?p=${currentPlayerId}`);
@@ -93,7 +91,7 @@ export function GameRoot({
 
   async function handleWordFound(word: WordQueueItem) {
     if (!currentRound || !currentPlayer?.team || !turnData) {
-      return { roundComplete: false };
+      return { success: false, roundComplete: false };
     }
     const result = await recordGuessedWord(
       game.id,
@@ -103,8 +101,8 @@ export function GameRoot({
       currentPlayerId,
       currentPlayer.team
     );
-    if (!result.success) return { roundComplete: false };
-    return { roundComplete: result.data.roundComplete };
+    if (!result.success) return { success: false, roundComplete: false };
+    return { success: true, roundComplete: result.data.roundComplete };
   }
 
   function handleTurnEnd(foundWords: WordQueueItem[], roundComplete: boolean) {
