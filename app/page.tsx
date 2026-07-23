@@ -96,7 +96,7 @@ function CreateGameScreen({ onBack }: { onBack: () => void }) {
       playerId: result.data.playerId,
       nickname: nickname.trim(),
     });
-    router.push(`/salon/${result.data.gameCode}`);
+    router.push(`/salon/${result.data.gameCode}?p=${result.data.playerId}`);
   }
 
   return (
@@ -164,7 +164,7 @@ function JoinGameScreen({ onBack }: { onBack: () => void }) {
       playerId: result.data.playerId,
       nickname: nickname.trim(),
     });
-    router.push(`/salon/${result.data.gameCode}`);
+    router.push(`/salon/${result.data.gameCode}?p=${result.data.playerId}`);
   }
 
   return (
