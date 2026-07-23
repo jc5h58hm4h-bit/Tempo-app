@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-import { APP_NAME, APP_DESCRIPTION } from "@/lib/constants";
+import { APP_NAME, APP_DESCRIPTION, PRESET_NICKNAMES } from "@/lib/constants";
 import { isValidNickname, normalizeGameCode } from "@/lib/utils";
 import { savePlayerSession } from "@/lib/session";
 import { createGame, joinGame } from "@/app/actions/game-actions";
@@ -68,6 +68,42 @@ function HomeScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
   );
 }
 
+function NicknamePicker({
+  value,
+  onChange,
+  error,
+}: {
+  value: string;
+  onChange: (nickname: string) => void;
+  error?: string;
+}) {
+  return (
+    <div>
+      <p className="mb-1.5 text-sm font-medium text-ink/70">Ton pseudo</p>
+      <div className="flex flex-wrap gap-2">
+        {PRESET_NICKNAMES.map((name) => {
+          const isSelected = value === name;
+          return (
+            <button
+              key={name}
+              type="button"
+              onClick={() => onChange(name)}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                isSelected
+                  ? "bg-blue-deep text-cream"
+                  : "bg-ink/5 text-ink/70"
+              }`}
+            >
+              {name}
+            </button>
+          );
+        })}
+      </div>
+      {error && <p className="mt-1.5 text-sm text-red-600">{error}</p>}
+    </div>
+  );
+}
+
 function CreateGameScreen({ onBack }: { onBack: () => void }) {
   const router = useRouter();
   const [nickname, setNickname] = useState("");
@@ -110,16 +146,13 @@ function CreateGameScreen({ onBack }: { onBack: () => void }) {
           Tu seras l&apos;hôte de la partie. Choisis d&apos;abord ton pseudo.
         </p>
       </div>
-      <Input
-        id="host-nickname"
-        label="Ton pseudo"
-        placeholder="Ex : Florian"
+      <NicknamePicker
         value={nickname}
-        maxLength={20}
-        onChange={(e) => setNickname(e.target.value)}
-        onBlur={() => setTouched(true)}
+        onChange={(name) => {
+          setNickname(name);
+          setTouched(true);
+        }}
         error={nicknameError}
-        autoFocus
       />
       {serverError && <p className="text-sm text-red-600">{serverError}</p>}
       <Button onClick={handleCreate} disabled={isSubmitting}>
@@ -190,14 +223,12 @@ function JoinGameScreen({ onBack }: { onBack: () => void }) {
         autoCapitalize="characters"
         autoFocus
       />
-      <Input
-        id="player-nickname"
-        label="Ton pseudo"
-        placeholder="Ex : Camille"
+      <NicknamePicker
         value={nickname}
-        maxLength={20}
-        onChange={(e) => setNickname(e.target.value)}
-        onBlur={() => setTouched(true)}
+        onChange={(name) => {
+          setNickname(name);
+          setTouched(true);
+        }}
         error={nicknameError}
       />
       {serverError && <p className="text-sm text-red-600">{serverError}</p>}
