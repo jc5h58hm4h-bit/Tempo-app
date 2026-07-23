@@ -18,15 +18,10 @@ interface PlayingScreenProps {
   initialQueue: WordQueueItem[];
   blueScore: number;
   yellowScore: number;
-  onWordFound: (word: WordQueueItem) => Promise<{ roundComplete: boolean }>;
+  onWordFound: (word: WordQueueItem) => Promise<{ success: boolean; roundComplete: boolean }>;
   onTurnEnd: (foundWords: WordQueueItem[], roundComplete: boolean) => void;
 }
 
-/**
- * Gère la pile de mots localement pour le joueur actif uniquement :
- * "Trouvé" retire le mot et écrit en base ; "Passer" le replace en fin de
- * pile sans écriture (comportement décrit section 8 du cahier des charges).
- */
 export function PlayingScreen({
   round,
   team,
@@ -42,6 +37,11 @@ export function PlayingScreen({
   const [scores, setScores] = useState({ blue: blueScore, yellow: yellowScore });
   const [isBlocked, setIsBlocked] = useState(false);
   const isBlockedRef = useRef(false);
+  // Empêche un double-appui rapide sur "Trouvé" d'envoyer deux requêtes pour
+  // le même mot (la deuxième échouerait silencieusement côté serveur, mais
+  // sans ce verrou la pile locale avançait quand même, sautant le mot suivant
+  // sans jamais l'enregistrer réellement en base).
+  const isSubmittingRef = useRef(false);
 
   const currentWord = queue[0];
 
@@ -53,18 +53,29 @@ export function PlayingScreen({
   }, []);
 
   async function handleFound() {
-    if (!currentWord || isBlockedRef.current) return;
-    const result = await onWordFound(currentWord);
-    setQueue((q) => q.slice(1));
-    foundWordsRef.current = [...foundWordsRef.current, currentWord];
-    setScores((s) => ({
-      ...s,
-      [team]: s[team] + 1,
-    }));
-    if (result.roundComplete) {
-      isBlockedRef.current = true;
-      setIsBlocked(true);
-      onTurnEnd(foundWordsRef.current, true);
+    if (!currentWord || isBlockedRef.current || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    try {
+      const wordToSubmit = currentWord;
+      const result = await onWordFound(wordToSubmit);
+      if (!result.success) {
+        // Échec réel (réseau, ou tentative en double déjà enregistrée) :
+        // on ne touche pas à la pile, l'utilisateur peut retenter "Trouvé".
+        return;
+      }
+      setQueue((q) => q.slice(1));
+      foundWordsRef.current = [...foundWordsRef.current, wordToSubmit];
+      setScores((s) => ({
+        ...s,
+        [team]: s[team] + 1,
+      }));
+      if (result.roundComplete) {
+        isBlockedRef.current = true;
+        setIsBlocked(true);
+        onTurnEnd(foundWordsRef.current, true);
+      }
+    } finally {
+      isSubmittingRef.current = false;
     }
   }
 
