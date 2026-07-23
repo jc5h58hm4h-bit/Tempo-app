@@ -7,7 +7,10 @@ export type CatalogCategory =
   | "acteurs"
   | "musique"
   | "lieux_historiques"
-  | "personnages_historiques";
+  | "personnages_historiques"
+  | "personnages_fictifs"
+  | "oeuvres_artistiques"
+  | "celebrites";
 
 export const CATALOG_CATEGORIES: CatalogCategory[] = [
   "marques",
@@ -19,6 +22,9 @@ export const CATALOG_CATEGORIES: CatalogCategory[] = [
   "musique",
   "lieux_historiques",
   "personnages_historiques",
+  "personnages_fictifs",
+  "oeuvres_artistiques",
+  "celebrites",
 ];
 
 export const CATALOG_CATEGORY_LABELS: Record<CatalogCategory, string> = {
@@ -26,11 +32,24 @@ export const CATALOG_CATEGORY_LABELS: Record<CatalogCategory, string> = {
   jeux_video: "Jeux vidéo",
   disney: "Disney",
   sportifs: "Sportifs",
-  films_series: "Films & Séries",
+  films_series: "Films / Séries / Émissions",
   acteurs: "Acteurs & actrices",
   musique: "Musique",
   lieux_historiques: "Lieux historiques",
   personnages_historiques: "Personnages historiques",
+  personnages_fictifs: "Personnages fictifs",
+  oeuvres_artistiques: "Œuvres artistiques",
+  celebrites: "Célébrités",
+};
+
+export type CatalogDifficulty = "facile" | "moyen" | "difficile";
+
+export const CATALOG_DIFFICULTIES: CatalogDifficulty[] = ["facile", "moyen", "difficile"];
+
+export const CATALOG_DIFFICULTY_LABELS: Record<CatalogDifficulty, string> = {
+  facile: "Facile",
+  moyen: "Moyen",
+  difficile: "Difficile",
 };
 
 /** Nombre de parties récentes pendant lesquelles un mot piochée ne doit pas ressortir. */
