@@ -515,3 +515,63 @@ export async function replaySameWords(
     data: { roundId: round.id, currentPlayerId: first.id, currentTeam: first.team },
   };
 }
+
+/**
+ * Démarre une toute nouvelle partie avec les mêmes joueurs et le même code
+ * (pas besoin de repartager une invitation) : vide la liste de mots et
+ * l'historique des manches, remet les scores à zéro, et renvoie tout le
+ * monde au salon d'attente pour choisir une nouvelle liste de mots et
+ * reconstituer les équipes si besoin.
+ */
+export async function newGameSamePlayers(
+  gameId: string,
+  hostPlayerId: string
+): Promise<ActionResult<null>> {
+  const supabase = getSupabaseServerClient();
+  if (!(await assertIsHost(supabase, gameId, hostPlayerId))) {
+    return { success: false, error: "Seul l'hôte peut démarrer une nouvelle partie." };
+  }
+
+  const { data: game } = await supabase
+    .from("games")
+    .select("status")
+    .eq("id", gameId)
+    .maybeSingle();
+  if (!game || game.status !== "finished") {
+    return { success: false, error: "La partie précédente n'est pas encore terminée." };
+  }
+
+  const { data: oldRounds } = await supabase
+    .from("rounds")
+    .select("id")
+    .eq("game_id", gameId);
+  const oldRoundIds = (oldRounds ?? []).map((r) => r.id);
+
+  if (oldRoundIds.length > 0) {
+    await supabase.from("guessed_words").delete().in("round_id", oldRoundIds);
+    await supabase.from("turns").delete().in("round_id", oldRoundIds);
+    await supabase.from("rounds").delete().in("id", oldRoundIds);
+  }
+
+  await supabase.from("words").delete().eq("game_id", gameId);
+
+  await supabase
+    .from("players")
+    .update({ score: 0, is_ready: false, team: null })
+    .eq("game_id", gameId);
+
+  const { error } = await supabase
+    .from("games")
+    .update({
+      status: "lobby",
+      current_round: null,
+      current_player_id: null,
+      current_team: null,
+    })
+    .eq("id", gameId);
+
+  if (error) {
+    return { success: false, error: "Impossible de démarrer une nouvelle partie." };
+  }
+  return { success: true, data: null };
+}
