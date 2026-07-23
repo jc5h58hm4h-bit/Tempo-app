@@ -66,11 +66,13 @@ export function GameRoot({
 
   // Redirige vers le salon si, pour une raison quelconque, la partie
   // n'a pas (ou plus) démarré (ex: rechargement avant le lancement).
+  // Le paramètre ?p= permet de retrouver le joueur même si le stockage
+  // local a été perdu (ex: changement de navigateur depuis un lien SMS).
   useEffect(() => {
     if (game.status === "lobby") {
-      router.replace(`/salon/${game.code}`);
+      router.replace(`/salon/${game.code}?p=${currentPlayerId}`);
     }
-  }, [game.status, game.code, router]);
+  }, [game.status, game.code, currentPlayerId, router]);
 
   // Dès que c'est (à nouveau) le tour de ce joueur, on repart sur l'écran
   // de transition "Passe le téléphone à...".

@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { addWord, addWordsBulk, removeWord, addWordsFromFileContent } from "@/app/actions/word-actions";
 import { DEMO_WORDS } from "@/lib/demo-words";
+<<<<<<< main
 import { CatalogPicker } from "@/components/salon/CatalogPicker";
+=======
+>>>>>>> origin/main
 import type { Word } from "@/types";
 import { GAME_RULES } from "@/types";
 

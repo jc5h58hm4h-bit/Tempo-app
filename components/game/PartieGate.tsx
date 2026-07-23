@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getPlayerSession } from "@/lib/session";
+import { getPlayerSession, savePlayerSession } from "@/lib/session";
 import { GameRoot } from "@/components/game/GameRoot";
 import { Button } from "@/components/ui/Button";
 import type { Game, Player, Round, Word } from "@/types";
@@ -28,9 +28,26 @@ export function PartieGate({
 
   useEffect(() => {
     const session = getPlayerSession(code);
-    setPlayerId(session?.playerId ?? null);
+    let resolvedPlayerId = session?.playerId ?? null;
+
+    if (!resolvedPlayerId && typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const fromUrl = params.get("p");
+      const matchingPlayer = fromUrl
+        ? initialPlayers.find((p) => p.id === fromUrl)
+        : undefined;
+      if (matchingPlayer) {
+        resolvedPlayerId = matchingPlayer.id;
+        savePlayerSession(code, {
+          playerId: matchingPlayer.id,
+          nickname: matchingPlayer.nickname,
+        });
+      }
+    }
+
+    setPlayerId(resolvedPlayerId);
     setChecked(true);
-  }, [code]);
+  }, [code, initialPlayers]);
 
   const playerStillInGame =
     playerId !== null && initialPlayers.some((p) => p.id === playerId);

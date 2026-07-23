@@ -4,6 +4,11 @@ import { PartieGate } from "@/components/game/PartieGate";
 import { normalizeGameCode } from "@/lib/utils";
 import type { Game, Player, Round, Word } from "@/types";
 
+// Empêche Next.js de mettre en cache les données de cette page : la partie
+// doit toujours refléter l'état le plus à jour (joueurs, statut, manche).
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function mapGame(row: any): Game {
   return {
     id: row.id,
