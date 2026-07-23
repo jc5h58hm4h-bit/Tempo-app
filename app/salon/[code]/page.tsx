@@ -4,6 +4,12 @@ import { SalonGate } from "@/components/salon/SalonGate";
 import { normalizeGameCode } from "@/lib/utils";
 import type { Game, Player, Word } from "@/types";
 
+// Empêche Next.js de mettre en cache les données de cette page : le salon
+// doit toujours refléter la liste de joueurs la plus à jour, sinon un
+// joueur qui vient de rejoindre peut sembler absent juste après son arrivée.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function mapGame(row: any): Game {
   return {
     id: row.id,
