@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -64,6 +65,10 @@ function HomeScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
         De {GAME_RULES.MIN_PLAYERS} à {GAME_RULES.MAX_PLAYERS} joueurs · aucun
         compte nécessaire
       </p>
+
+      <Link href="/stats" className="text-sm font-medium text-blue-deep underline">
+        🏆 Classement annuel
+      </Link>
     </div>
   );
 }
