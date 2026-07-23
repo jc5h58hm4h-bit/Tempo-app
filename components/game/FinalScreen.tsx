@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { replaySameWords } from "@/app/actions/round-actions";
+import { replaySameWords, newGameSamePlayers } from "@/app/actions/round-actions";
 import { clearPlayerSession } from "@/lib/session";
 import { TEAM_LABELS } from "@/lib/constants";
 import { sumRoundScores, determineWinningTeam } from "@/lib/game-rules";
@@ -33,6 +33,7 @@ export function FinalScreen({
 }) {
   const router = useRouter();
   const [rounds, setRounds] = useState<RoundResult[]>([]);
+  const [guessedCounts, setGuessedCounts] = useState<Record<string, number>>({});
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -54,19 +55,70 @@ export function FinalScreen({
       });
   }, [gameId]);
 
+  // Un mot trouvé est enregistré avec l'identifiant du joueur qui FAISAIT
+  // deviner (celui qui tenait le téléphone). Ici on veut au contraire créditer
+  // le ou les coéquipiers qui ont DEVINÉ le mot. Dans une équipe de 2, le mot
+  // est donc crédité à l'autre membre de l'équipe ; dans une équipe d'1 seul
+  // joueur, les deux rôles se confondent et le mot lui reste crédité.
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    supabase
+      .from("guessed_words")
+      .select("player_id")
+      .eq("game_id", gameId)
+      .then(({ data }) => {
+        const teammateOf: Record<string, string> = {};
+        for (const team of ["blue", "yellow"] as const) {
+          const members = players.filter((p) => p.team === team);
+          const first = members[0];
+          const second = members[1];
+          if (first && second) {
+            teammateOf[first.id] = second.id;
+            teammateOf[second.id] = first.id;
+          } else if (first) {
+            teammateOf[first.id] = first.id;
+          }
+        }
+
+        const counts: Record<string, number> = {};
+        for (const row of data ?? []) {
+          const describerId = row.player_id as string;
+          const guesserId = teammateOf[describerId] ?? describerId;
+          counts[guesserId] = (counts[guesserId] ?? 0) + 1;
+        }
+        setGuessedCounts(counts);
+      });
+  }, [gameId, players]);
+
   const { blue: totalBlue, yellow: totalYellow } = sumRoundScores(
     rounds.map((r) => ({ blueTeamScore: r.blueScore, yellowTeamScore: r.yellowScore }))
   );
   const winner = determineWinningTeam(totalBlue, totalYellow);
   const isTie = winner === "tie";
 
-  const bestPlayer = [...players].sort((a, b) => b.score - a.score)[0];
+  const rankedPlayers = [...players].sort(
+    (a, b) => (guessedCounts[b.id] ?? 0) - (guessedCounts[a.id] ?? 0)
+  );
+  const bestPlayer = rankedPlayers[0];
+  const bestPlayerCount = bestPlayer ? guessedCounts[bestPlayer.id] ?? 0 : 0;
 
   function handleReplay() {
     startTransition(async () => {
       const result = await replaySameWords(gameId, hostPlayerId);
       // La redirection est automatique : GameRoot détecte le changement de
       // statut de la partie ("in_progress") via Realtime et affiche la manche 1.
+      if (!result.success) {
+        // eslint-disable-next-line no-console
+        console.error(result.error);
+      }
+    });
+  }
+
+  function handleNewGameSamePlayers() {
+    startTransition(async () => {
+      const result = await newGameSamePlayers(gameId, hostPlayerId);
+      // La redirection vers le salon est automatique : GameRoot détecte le
+      // changement de statut de la partie ("lobby") via Realtime.
       if (!result.success) {
         // eslint-disable-next-line no-console
         console.error(result.error);
@@ -118,37 +170,45 @@ export function FinalScreen({
         </div>
       </Card>
 
-      {bestPlayer && (
+      {bestPlayer && bestPlayerCount > 0 && (
         <Card tone="yellow" className="flex flex-col items-center gap-1 text-center">
-          <p className="text-sm font-medium text-ink/60">Meilleur joueur</p>
+          <p className="text-sm font-medium text-ink/60">Meilleur devineur</p>
           <p className="font-display text-xl font-semibold">{bestPlayer.nickname}</p>
           <p className="text-sm text-ink/60">
-            {bestPlayer.score} mot{bestPlayer.score > 1 ? "s" : ""} trouvé
-            {bestPlayer.score > 1 ? "s" : ""}
+            {bestPlayerCount} mot{bestPlayerCount > 1 ? "s" : ""} deviné
+            {bestPlayerCount > 1 ? "s" : ""}
           </p>
         </Card>
       )}
 
       <Card className="flex flex-col gap-1.5">
-        <p className="mb-1 text-sm font-medium text-ink/60">Mots trouvés par joueur</p>
-        {[...players]
-          .sort((a, b) => b.score - a.score)
-          .map((player) => (
-            <div key={player.id} className="flex justify-between text-sm">
-              <span>{player.nickname}</span>
-              <span className="font-medium">{player.score}</span>
-            </div>
-          ))}
+        <p className="mb-1 text-sm font-medium text-ink/60">Mots devinés par joueur</p>
+        {rankedPlayers.map((player) => (
+          <div key={player.id} className="flex justify-between text-sm">
+            <span>{player.nickname}</span>
+            <span className="font-medium">{guessedCounts[player.id] ?? 0}</span>
+          </div>
+        ))}
       </Card>
 
       <div className="flex flex-col gap-2">
         {isHost && (
-          <Button variant="primary" onClick={handleReplay} disabled={isPending}>
-            Rejouer avec les mêmes mots
-          </Button>
+          <>
+            <Button variant="primary" onClick={handleReplay} disabled={isPending}>
+              Rejouer avec les mêmes mots
+            </Button>
+            <Button variant="yellow" onClick={handleNewGameSamePlayers} disabled={isPending}>
+              Nouvelle partie (mêmes joueurs)
+            </Button>
+          </>
+        )}
+        {!isHost && (
+          <p className="text-center text-sm text-ink/40">
+            En attente que l&apos;hôte relance une partie...
+          </p>
         )}
         <Button variant="secondary" onClick={handleNewGame}>
-          Nouvelle partie
+          Nouvelle partie (nouveau code)
         </Button>
         <Button variant="ghost" onClick={handleHome}>
           Retour à l&apos;accueil
