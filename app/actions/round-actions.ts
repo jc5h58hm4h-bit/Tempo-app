@@ -6,6 +6,7 @@ import { buildTurnOrder, nextPlayerInOrder } from "@/lib/turn-order";
 import { isRoundComplete, computeNextRoundNumber } from "@/lib/game-rules";
 import type { ActionResult } from "@/lib/action-result";
 import type { Player, Team } from "@/types";
+import { GAME_RULES } from "@/types";
 
 async function assertIsHost(
   supabase: ReturnType<typeof getSupabaseServerClient>,
@@ -622,5 +623,99 @@ export async function newGameSamePlayers(
   if (error) {
     return { success: false, error: "Impossible de démarrer une nouvelle partie." };
   }
+  return { success: true, data: null };
+}
+
+/**
+ * Retire un joueur de la partie, à la demande de l'hôte (ex: joueur parti
+ * définitivement, appareil injoignable). Si c'était son tour de faire
+ * deviner, la partie avance automatiquement vers le joueur suivant avant de
+ * le retirer. Si trop peu de joueurs restent pour continuer, la partie est
+ * renvoyée au salon d'attente.
+ *
+ * Limite connue : retirer un joueur supprime aussi son historique de tours
+ * et de mots trouvés (contrainte de clé étrangère), ce qui peut faire
+ * réapparaître un mot déjà trouvé par ce joueur dans la pile restante de la
+ * manche en cours. Effet secondaire mineur, accepté pour garder l'action
+ * simple et fiable.
+ */
+export async function removePlayer(
+  gameId: string,
+  hostPlayerId: string,
+  targetPlayerId: string
+): Promise<ActionResult<null>> {
+  const supabase = getSupabaseServerClient();
+  if (!(await assertIsHost(supabase, gameId, hostPlayerId))) {
+    return { success: false, error: "Seul l'hôte peut retirer un joueur." };
+  }
+  if (targetPlayerId === hostPlayerId) {
+    return { success: false, error: "L'hôte ne peut pas se retirer lui-même." };
+  }
+
+  const { data: game } = await supabase
+    .from("games")
+    .select("status, current_player_id")
+    .eq("id", gameId)
+    .maybeSingle();
+  if (!game) {
+    return { success: false, error: "Partie introuvable." };
+  }
+
+  const wasActivePlayer = game.current_player_id === targetPlayerId;
+
+  // Si c'est ce joueur qui doit décrire en ce moment, on fait avancer la
+  // partie vers le joueur suivant AVANT de le retirer.
+  if (game.status === "in_progress" && wasActivePlayer) {
+    const { data: playerRows } = await supabase
+      .from("players")
+      .select("*")
+      .eq("game_id", gameId)
+      .order("joined_at");
+    const remaining = (playerRows ?? [])
+      .map(mapPlayer)
+      .filter((p) => p.id !== targetPlayerId);
+    const order = buildTurnOrder(remaining);
+    const next = order[0];
+
+    if (next && next.team) {
+      await supabase
+        .from("games")
+        .update({ current_player_id: next.id, current_team: next.team })
+        .eq("id", gameId);
+    } else {
+      await supabase
+        .from("games")
+        .update({ current_player_id: null, current_team: null })
+        .eq("id", gameId);
+    }
+  }
+
+  const { error: deleteError } = await supabase
+    .from("players")
+    .delete()
+    .eq("id", targetPlayerId)
+    .eq("game_id", gameId);
+  if (deleteError) {
+    return { success: false, error: "Impossible de retirer ce joueur." };
+  }
+
+  // Plus assez de joueurs pour continuer : retour au salon d'attente.
+  const { count: remainingCount } = await supabase
+    .from("players")
+    .select("id", { count: "exact", head: true })
+    .eq("game_id", gameId);
+
+  if ((remainingCount ?? 0) < GAME_RULES.MIN_PLAYERS && game.status !== "lobby") {
+    await supabase
+      .from("games")
+      .update({
+        status: "lobby",
+        current_round: null,
+        current_player_id: null,
+        current_team: null,
+      })
+      .eq("id", gameId);
+  }
+
   return { success: true, data: null };
 }
