@@ -1,7 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Client Supabase utilisé dans les Server Actions (app/actions/*).
+ * Client Supabase utilisé dans les Server Actions (app/actions/*) et dans
+ * les pages serveur (app/salon/[code], app/partie/[code]).
  * Un nouveau client léger est créé à chaque appel plutôt qu'un singleton,
  * car il tourne côté serveur sans état de session.
  *
@@ -10,6 +11,11 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  * action nécessite explicitement de contourner le RLS (voir Partie 4,
  * section Sécurité) — et dans ce cas uniquement dans un fichier serveur,
  * jamais exposée au bundle client.
+ *
+ * Le fetch personnalisé désactive explicitement le cache de données de
+ * Next.js (qui met en cache les requêtes GET par défaut dans certains
+ * contextes serveur). Sans ça, un joueur qui vient de rejoindre une partie
+ * peut ne pas apparaître immédiatement dans les lectures suivantes.
  */
 export function getSupabaseServerClient(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -21,5 +27,9 @@ export function getSupabaseServerClient(): SupabaseClient {
     );
   }
 
-  return createClient(url, anonKey);
+  return createClient(url, anonKey, {
+    global: {
+      fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+    },
+  });
 }
