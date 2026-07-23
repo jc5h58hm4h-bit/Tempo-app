@@ -4,9 +4,10 @@ import type { NextRequest } from "next/server";
 const SESSION_COOKIE_NAME = "tempo_session";
 
 // Chemins accessibles sans être connecté : la page de connexion elle-même,
-// la page hors-ligne PWA, et les fichiers statiques nécessaires au
+// la page hors-ligne PWA, les fichiers statiques nécessaires au
 // fonctionnement de l'app avant même la connexion (manifest, service worker,
-// icônes).
+// icônes), et les routes API (qui ont leur propre vérification, ex: le
+// nettoyage automatique appelé par Vercel Cron).
 const PUBLIC_PATHS = ["/login", "/offline", "/manifest.webmanifest", "/sw.js"];
 
 export function middleware(request: NextRequest) {
@@ -15,6 +16,7 @@ export function middleware(request: NextRequest) {
   const isPublic =
     PUBLIC_PATHS.includes(pathname) ||
     pathname.startsWith("/icons/") ||
+    pathname.startsWith("/api/") ||
     pathname === "/favicon.ico";
 
   if (isPublic) {
