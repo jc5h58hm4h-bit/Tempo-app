@@ -11,6 +11,7 @@ import { TurnSummary } from "@/components/game/TurnSummary";
 import { SpectatorScreen } from "@/components/game/SpectatorScreen";
 import { RoundSummary } from "@/components/game/RoundSummary";
 import { FinalScreen } from "@/components/game/FinalScreen";
+import { PlayerManagementDrawer } from "@/components/game/PlayerManagementDrawer";
 import { startTurn, recordGuessedWord, endTurn, startNextRound } from "@/app/actions/round-actions";
 import { markPlayerConnected } from "@/app/actions/game-actions";
 import type { Game, Player, Round, Word } from "@/types";
@@ -123,93 +124,104 @@ export function GameRoot({
 
   // --- Rendu ---------------------------------------------------------
 
-  if (game.status === "team_setup") {
-    return (
-      <TeamSetupScreen
-        gameId={game.id}
-        hostPlayerId={game.hostPlayerId}
-        isHost={isHost}
-        players={players}
-      />
-    );
-  }
+  function renderContent() {
+    if (game.status === "team_setup") {
+      return (
+        <TeamSetupScreen
+          gameId={game.id}
+          hostPlayerId={game.hostPlayerId}
+          isHost={isHost}
+          players={players}
+        />
+      );
+    }
 
-  if (turnPhase === "turn_summary") {
-    return (
-      <TurnSummary
-        foundWords={summaryWords}
-        onContinue={handleContinueFromSummary}
-        isPending={false}
-      />
-    );
-  }
+    if (turnPhase === "turn_summary") {
+      return (
+        <TurnSummary
+          foundWords={summaryWords}
+          onContinue={handleContinueFromSummary}
+          isPending={false}
+        />
+      );
+    }
 
-  if (game.status === "round_summary" && currentRound) {
-    return (
-      <RoundSummary
-        roundNumber={currentRound.roundNumber}
-        blueScore={currentRound.blueTeamScore}
-        yellowScore={currentRound.yellowTeamScore}
-        isHost={isHost}
-        onNextRound={handleNextRound}
-        isPending={false}
-      />
-    );
-  }
+    if (game.status === "round_summary" && currentRound) {
+      return (
+        <RoundSummary
+          roundNumber={currentRound.roundNumber}
+          blueScore={currentRound.blueTeamScore}
+          yellowScore={currentRound.yellowTeamScore}
+          isHost={isHost}
+          onNextRound={handleNextRound}
+          isPending={false}
+        />
+      );
+    }
 
-  if (game.status === "finished") {
-    return (
-      <FinalScreen
-        gameId={game.id}
-        gameCode={game.code}
-        hostPlayerId={game.hostPlayerId}
-        isHost={isHost}
-        players={players}
-      />
-    );
-  }
+    if (game.status === "finished") {
+      return (
+        <FinalScreen
+          gameId={game.id}
+          gameCode={game.code}
+          hostPlayerId={game.hostPlayerId}
+          isHost={isHost}
+          players={players}
+        />
+      );
+    }
 
-  if (game.status === "in_progress" && currentRound) {
-    if (isMyTurn && currentPlayer?.team) {
-      if (turnPhase === "playing" && turnData) {
+    if (game.status === "in_progress" && currentRound) {
+      if (isMyTurn && currentPlayer?.team) {
+        if (turnPhase === "playing" && turnData) {
+          return (
+            <PlayingScreen
+              round={currentRound.roundNumber}
+              team={currentPlayer.team}
+              durationSeconds={game.turnDurationSeconds}
+              initialQueue={turnData.queue}
+              blueScore={currentRound.blueTeamScore}
+              yellowScore={currentRound.yellowTeamScore}
+              onWordFound={handleWordFound}
+              onTurnEnd={handleTurnEnd}
+            />
+          );
+        }
         return (
-          <PlayingScreen
-            round={currentRound.roundNumber}
+          <TransitionScreen
+            playerNickname={currentPlayer.nickname}
             team={currentPlayer.team}
-            durationSeconds={game.turnDurationSeconds}
-            initialQueue={turnData.queue}
-            blueScore={currentRound.blueTeamScore}
-            yellowScore={currentRound.yellowTeamScore}
-            onWordFound={handleWordFound}
-            onTurnEnd={handleTurnEnd}
+            onReady={handleReady}
           />
         );
       }
-      return (
-        <TransitionScreen
-          playerNickname={currentPlayer.nickname}
-          team={currentPlayer.team}
-          onReady={handleReady}
-        />
-      );
+
+      if (activePlayer?.team) {
+        return (
+          <SpectatorScreen
+            round={currentRound.roundNumber}
+            blueScore={currentRound.blueTeamScore}
+            yellowScore={currentRound.yellowTeamScore}
+            activePlayerNickname={activePlayer.nickname}
+            activeTeam={activePlayer.team}
+          />
+        );
+      }
     }
 
-    if (activePlayer?.team) {
-      return (
-        <SpectatorScreen
-          round={currentRound.roundNumber}
-          blueScore={currentRound.blueTeamScore}
-          yellowScore={currentRound.yellowTeamScore}
-          activePlayerNickname={activePlayer.nickname}
-          activeTeam={activePlayer.team}
-        />
-      );
-    }
+    return (
+      <div className="flex min-h-screen items-center justify-center px-6 text-center text-ink/40">
+        Préparation de la partie...
+      </div>
+    );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-6 text-center text-ink/40">
-      Préparation de la partie...
-    </div>
+    <>
+      {renderContent()}
+      {isHost && game.status !== "finished" && (
+        <PlayerManagementDrawer gameId={game.id} hostPlayerId={game.hostPlayerId} players={players} />
+      )}
+    </>
   );
 }
