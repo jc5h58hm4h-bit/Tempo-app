@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { addWord, addWordsBulk, removeWord } from "@/app/actions/word-actions";
+import { addWord, addWordsBulk, removeWord, addWordsFromFileContent } from "@/app/actions/word-actions";
+import { DEMO_WORDS } from "@/lib/demo-words";
+import { CatalogPicker } from "@/components/salon/CatalogPicker";
 import type { Word } from "@/types";
 import { GAME_RULES } from "@/types";
 
@@ -38,8 +40,11 @@ export function WordManager({ gameId, hostPlayerId, isHost, words }: WordManager
         </span>
       </div>
 
+      <CatalogPicker gameId={gameId} hostPlayerId={hostPlayerId} />
       <SingleWordForm gameId={gameId} hostPlayerId={hostPlayerId} />
       <BulkWordForm gameId={gameId} hostPlayerId={hostPlayerId} />
+      <FileImportForm gameId={gameId} hostPlayerId={hostPlayerId} />
+      <WordCatalog gameId={gameId} hostPlayerId={hostPlayerId} />
 
       {words.length > 0 && (
         <ul className="flex max-h-56 flex-col gap-1.5 overflow-y-auto">
@@ -161,6 +166,120 @@ function BulkWordForm({
       >
         Importer les mots
       </Button>
+      {feedback && <p className="text-sm text-ink/60">{feedback}</p>}
+    </div>
+  );
+}
+
+function FileImportForm({
+  gameId,
+  hostPlayerId,
+}: {
+  gameId: string;
+  hostPlayerId: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [feedback, setFeedback] = useState<string | undefined>();
+  const [isPending, startTransition] = useTransition();
+
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === "string" ? reader.result : "";
+      setFeedback(undefined);
+      startTransition(async () => {
+        const result = await addWordsFromFileContent(gameId, hostPlayerId, text);
+        if (!result.success) {
+          setFeedback(result.error);
+          return;
+        }
+        const { added, skippedDuplicates, skippedInvalid } = result.data;
+        setFeedback(
+          `${added} mot${added > 1 ? "s" : ""} importé${added > 1 ? "s" : ""} depuis le fichier` +
+            (skippedDuplicates > 0 ? ` · ${skippedDuplicates} doublon(s) ignoré(s)` : "") +
+            (skippedInvalid > 0 ? ` · ${skippedInvalid} invalide(s) ignoré(s)` : "")
+        );
+      });
+    };
+    reader.readAsText(file);
+    // Permet de resélectionner le même fichier une seconde fois si besoin.
+    event.target.value = "";
+  }
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-ink/10 pt-4">
+      <label className="text-sm font-medium text-ink/70">
+        Importer un fichier .txt ou .csv (un mot par ligne)
+      </label>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".txt,.csv,text/plain,text/csv"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+      <Button
+        variant="secondary"
+        size="md"
+        onClick={() => inputRef.current?.click()}
+        disabled={isPending}
+      >
+        {isPending ? "Import en cours..." : "Choisir un fichier"}
+      </Button>
+      {feedback && <p className="text-sm text-ink/60">{feedback}</p>}
+    </div>
+  );
+}
+
+function WordCatalog({
+  gameId,
+  hostPlayerId,
+}: {
+  gameId: string;
+  hostPlayerId: string;
+}) {
+  const [feedback, setFeedback] = useState<string | undefined>();
+  const [pendingCategory, setPendingCategory] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleImportCategory(category: string, categoryWords: string[]) {
+    setFeedback(undefined);
+    setPendingCategory(category);
+    startTransition(async () => {
+      const result = await addWordsBulk(gameId, hostPlayerId, categoryWords.join("\n"));
+      if (!result.success) {
+        setFeedback(result.error);
+        return;
+      }
+      const { added, skippedDuplicates } = result.data;
+      setFeedback(
+        `${added} mot${added > 1 ? "s" : ""} ajouté${added > 1 ? "s" : ""} depuis "${category}"` +
+          (skippedDuplicates > 0 ? ` · ${skippedDuplicates} déjà présent(s)` : "")
+      );
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-ink/10 pt-4">
+      <label className="text-sm font-medium text-ink/70">
+        Catalogue de mots prêts à l&apos;emploi
+      </label>
+      <div className="flex flex-wrap gap-2">
+        {DEMO_WORDS.map(({ category, words: categoryWords }) => (
+          <button
+            key={category}
+            onClick={() => handleImportCategory(category, categoryWords)}
+            disabled={isPending}
+            className="rounded-full bg-yellow-pale px-3 py-1.5 text-sm font-medium text-ink disabled:opacity-40"
+          >
+            {isPending && pendingCategory === category ? "..." : category}
+            <span className="ml-1 text-ink/40">({categoryWords.length})</span>
+          </button>
+        ))}
+      </div>
       {feedback && <p className="text-sm text-ink/60">{feedback}</p>}
     </div>
   );
