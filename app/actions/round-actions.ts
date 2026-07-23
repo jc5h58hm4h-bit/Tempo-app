@@ -77,6 +77,83 @@ function opposingTeam(team: Team): Team {
   return team === "blue" ? "yellow" : "blue";
 }
 
+/**
+ * À la toute fin d'une partie, calcule les mots devinés par chaque joueur
+ * (créditant le coéquipier qui devinait, pas celui qui faisait deviner —
+ * même logique que l'écran de fin de partie) et cumule ça dans la table
+ * player_stats, par pseudo et par année. Cette table est indépendante des
+ * parties elles-mêmes, donc elle survit au nettoyage automatique.
+ */
+async function recordAnnualStats(
+  supabase: ReturnType<typeof getSupabaseServerClient>,
+  gameId: string
+): Promise<void> {
+  const { data: playerRows } = await supabase
+    .from("players")
+    .select("id, nickname, team")
+    .eq("game_id", gameId);
+  const players = playerRows ?? [];
+  if (players.length === 0) return;
+
+  const { data: guessedRows } = await supabase
+    .from("guessed_words")
+    .select("player_id")
+    .eq("game_id", gameId);
+
+  const teammateOf: Record<string, string> = {};
+  for (const team of ["blue", "yellow"] as const) {
+    const members = players.filter((p) => p.team === team);
+    const first = members[0];
+    const second = members[1];
+    if (first && second) {
+      teammateOf[first.id] = second.id;
+      teammateOf[second.id] = first.id;
+    } else if (first) {
+      teammateOf[first.id] = first.id;
+    }
+  }
+
+  const guessedCountByPlayerId: Record<string, number> = {};
+  for (const row of guessedRows ?? []) {
+    const describerId = row.player_id as string;
+    const guesserId = teammateOf[describerId] ?? describerId;
+    guessedCountByPlayerId[guesserId] = (guessedCountByPlayerId[guesserId] ?? 0) + 1;
+  }
+
+  const year = new Date().getFullYear();
+
+  await Promise.all(
+    players.map(async (player) => {
+      const wordsGuessed = guessedCountByPlayerId[player.id] ?? 0;
+
+      const { data: existing } = await supabase
+        .from("player_stats")
+        .select("id, words_guessed, games_played")
+        .eq("nickname", player.nickname)
+        .eq("year", year)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from("player_stats")
+          .update({
+            words_guessed: existing.words_guessed + wordsGuessed,
+            games_played: existing.games_played + 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+      } else {
+        await supabase.from("player_stats").insert({
+          nickname: player.nickname,
+          year,
+          words_guessed: wordsGuessed,
+          games_played: 1,
+        });
+      }
+    })
+  );
+}
+
 // --- Équipes ---------------------------------------------------------
 
 /**
@@ -383,6 +460,10 @@ export async function endTurn(
       .from("games")
       .update({ status: newStatus, current_player_id: null, current_team: null })
       .eq("id", gameId);
+
+    if (isFinalRound) {
+      await recordAnnualStats(supabase, gameId);
+    }
 
     return {
       success: true,
