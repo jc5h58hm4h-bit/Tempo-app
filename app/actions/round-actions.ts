@@ -82,12 +82,14 @@ function opposingTeam(team: Team): Team {
  * À la toute fin d'une partie, calcule les mots devinés par chaque joueur
  * (créditant le coéquipier qui devinait, pas celui qui faisait deviner —
  * même logique que l'écran de fin de partie) et cumule ça dans la table
- * player_stats, par pseudo et par année. Cette table est indépendante des
+ * player_stats, par pseudo, par année ET par mode de jeu (classique ou
+ * chrono sont comptabilisés séparément). Cette table est indépendante des
  * parties elles-mêmes, donc elle survit au nettoyage automatique.
  */
 async function recordAnnualStats(
   supabase: ReturnType<typeof getSupabaseServerClient>,
-  gameId: string
+  gameId: string,
+  mode: GameMode
 ): Promise<void> {
   const { data: playerRows } = await supabase
     .from("players")
@@ -132,6 +134,7 @@ async function recordAnnualStats(
         .select("id, words_guessed, games_played")
         .eq("nickname", player.nickname)
         .eq("year", year)
+        .eq("mode", mode)
         .maybeSingle();
 
       if (existing) {
@@ -147,6 +150,7 @@ async function recordAnnualStats(
         await supabase.from("player_stats").insert({
           nickname: player.nickname,
           year,
+          mode,
           words_guessed: wordsGuessed,
           games_played: 1,
         });
@@ -507,7 +511,7 @@ export async function endTurn(
         .from("games")
         .update({ status: "finished", current_player_id: null, current_team: null })
         .eq("id", gameId);
-      await recordAnnualStats(supabase, gameId);
+      await recordAnnualStats(supabase, gameId, "chrono");
 
       return {
         success: true,
@@ -552,7 +556,7 @@ export async function endTurn(
       .eq("id", gameId);
 
     if (isFinalRound) {
-      await recordAnnualStats(supabase, gameId);
+      await recordAnnualStats(supabase, gameId, "classic");
     }
 
     return {
