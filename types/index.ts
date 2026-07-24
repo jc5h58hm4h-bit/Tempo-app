@@ -1,9 +1,18 @@
 // Types métier partagés entre le client, les Server Actions et Supabase.
-// NB : la partie se joue en 2 manches (pas de manche mime) :
+// NB : en mode "classique", la partie se joue en 2 manches (pas de manche mime) :
 //   1. Description libre
 //   2. Un seul mot
+// En mode "chrono", il n'y a qu'un seul tour de 2 minutes par joueur (voir
+// GameMode ci-dessous).
 
 export type Team = "blue" | "yellow";
+
+/**
+ * "classic" : 2 manches, liste de mots partagée qui s'épuise.
+ * "chrono" : chaque joueur joue une seule fois, 2 minutes chrono, 3 passes
+ * maximum, le but est de deviner le plus de mots possible.
+ */
+export type GameMode = "classic" | "chrono";
 
 export type GameStatus =
   | "lobby" // salon d'attente, la partie n'a pas démarré
@@ -12,7 +21,7 @@ export type GameStatus =
   | "round_summary" // écran récapitulatif entre deux manches
   | "finished"; // partie terminée
 
-/** Il y a exactement 2 manches dans cette version de l'application. */
+/** Il y a exactement 2 manches en mode classique (1 seule en mode chrono). */
 export type RoundNumber = 1 | 2;
 
 export const ROUND_COUNT = 2;
@@ -38,12 +47,17 @@ export const ROUND_DEFINITIONS: Record<RoundNumber, RoundDefinition> = {
   },
 };
 
-export type TurnDurationSeconds = 30 | 45 | 60;
+export type TurnDurationSeconds = 30 | 45 | 60 | 120;
+
+/** Nombre de passes maximum par joueur en mode chrono (illimité en classique). */
+export const CHRONO_MAX_PASSES = 3;
+export const CHRONO_TURN_DURATION_SECONDS: TurnDurationSeconds = 120;
 
 export interface Game {
   id: string;
   code: string;
   status: GameStatus;
+  mode: GameMode;
   hostPlayerId: string;
   currentRound: RoundNumber | null;
   currentPlayerId: string | null;
