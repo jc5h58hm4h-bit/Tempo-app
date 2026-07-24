@@ -3,19 +3,31 @@
 import { useState, useTransition } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { assignTeamsAuto, assignTeamsManual, startGameRounds } from "@/app/actions/round-actions";
+import {
+  assignTeamsAuto,
+  assignTeamsManual,
+  startGameRounds,
+  setGameMode,
+} from "@/app/actions/round-actions";
 import { TEAM_LABELS } from "@/lib/constants";
-import type { Player, Team } from "@/types";
+import type { GameMode, Player, Team } from "@/types";
 
 interface TeamSetupScreenProps {
   gameId: string;
   hostPlayerId: string;
   isHost: boolean;
   players: Player[];
+  gameMode: GameMode;
 }
 
-export function TeamSetupScreen({ gameId, hostPlayerId, isHost, players }: TeamSetupScreenProps) {
-  const [mode, setMode] = useState<"choice" | "manual">("choice");
+export function TeamSetupScreen({
+  gameId,
+  hostPlayerId,
+  isHost,
+  players,
+  gameMode,
+}: TeamSetupScreenProps) {
+  const [teamPickerMode, setTeamPickerMode] = useState<"choice" | "manual">("choice");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | undefined>();
 
@@ -25,6 +37,14 @@ export function TeamSetupScreen({ gameId, hostPlayerId, isHost, players }: TeamS
     setError(undefined);
     startTransition(async () => {
       const result = await assignTeamsAuto(gameId, hostPlayerId);
+      if (!result.success) setError(result.error);
+    });
+  }
+
+  function handleChangeGameMode(nextMode: GameMode) {
+    setError(undefined);
+    startTransition(async () => {
+      const result = await setGameMode(gameId, hostPlayerId, nextMode);
       if (!result.success) setError(result.error);
     });
   }
@@ -42,6 +62,7 @@ export function TeamSetupScreen({ gameId, hostPlayerId, isHost, players }: TeamS
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
         <h2 className="font-display text-2xl font-semibold">Constitution des équipes</h2>
         <p className="text-ink/60">L&apos;hôte prépare les équipes...</p>
+        <GameModeBadge mode={gameMode} />
         <TeamLists players={players} />
       </div>
     );
@@ -53,23 +74,25 @@ export function TeamSetupScreen({ gameId, hostPlayerId, isHost, players }: TeamS
         Constitution des équipes
       </h2>
 
-      {mode === "choice" && !teamsAssigned && (
+      <GameModePicker mode={gameMode} onChange={handleChangeGameMode} disabled={isPending} />
+
+      {teamPickerMode === "choice" && !teamsAssigned && (
         <div className="flex flex-col gap-3">
           <Button onClick={handleAuto} disabled={isPending}>
             Créer les équipes automatiquement
           </Button>
-          <Button variant="secondary" onClick={() => setMode("manual")}>
+          <Button variant="secondary" onClick={() => setTeamPickerMode("manual")}>
             Choisir les équipes manuellement
           </Button>
         </div>
       )}
 
-      {mode === "manual" && !teamsAssigned && (
+      {teamPickerMode === "manual" && !teamsAssigned && (
         <ManualTeamPicker
           gameId={gameId}
           hostPlayerId={hostPlayerId}
           players={players}
-          onCancel={() => setMode("choice")}
+          onCancel={() => setTeamPickerMode("choice")}
         />
       )}
 
@@ -87,6 +110,52 @@ export function TeamSetupScreen({ gameId, hostPlayerId, isHost, players }: TeamS
   );
 }
 
+function GameModePicker({
+  mode,
+  onChange,
+  disabled,
+}: {
+  mode: GameMode;
+  onChange: (mode: GameMode) => void;
+  disabled: boolean;
+}) {
+  return (
+    <Card className="flex flex-col gap-2">
+      <p className="text-sm font-medium text-ink/70">Mode de jeu</p>
+      <div className="flex gap-2">
+        <button
+          onClick={() => onChange("classic")}
+          disabled={disabled}
+          className={`flex-1 rounded-2xl px-3 py-3 text-left ${
+            mode === "classic" ? "bg-blue-deep text-cream" : "bg-ink/5 text-ink/60"
+          }`}
+        >
+          <p className="font-display font-semibold">Classique</p>
+          <p className="text-xs opacity-80">2 manches, mots partagés</p>
+        </button>
+        <button
+          onClick={() => onChange("chrono")}
+          disabled={disabled}
+          className={`flex-1 rounded-2xl px-3 py-3 text-left ${
+            mode === "chrono" ? "bg-yellow-vivid text-ink" : "bg-ink/5 text-ink/60"
+          }`}
+        >
+          <p className="font-display font-semibold">Chrono</p>
+          <p className="text-xs opacity-80">2 min par joueur, 3 passes max</p>
+        </button>
+      </div>
+    </Card>
+  );
+}
+
+function GameModeBadge({ mode }: { mode: GameMode }) {
+  return (
+    <span className="rounded-full bg-ink/5 px-3 py-1 text-sm font-medium text-ink/60">
+      Mode : {mode === "chrono" ? "Chrono" : "Classique"}
+    </span>
+  );
+}
+
 function TeamLists({ players }: { players: Player[] }) {
   const blue = players.filter((p) => p.team === "blue");
   const yellow = players.filter((p) => p.team === "yellow");
@@ -101,7 +170,7 @@ function TeamLists({ players }: { players: Player[] }) {
           {blue.map((p) => (
             <li key={p.id}>{p.nickname}</li>
           ))}
-          {blue.length === 0 && <li className="text-blue-deep/40">--</li>}
+          {blue.length === 0 && <li className="text-blue-deep/40">—</li>}
         </ul>
       </Card>
       <Card tone="yellow">
@@ -110,7 +179,7 @@ function TeamLists({ players }: { players: Player[] }) {
           {yellow.map((p) => (
             <li key={p.id}>{p.nickname}</li>
           ))}
-          {yellow.length === 0 && <li className="text-ink/40">--</li>}
+          {yellow.length === 0 && <li className="text-ink/40">—</li>}
         </ul>
       </Card>
     </div>
