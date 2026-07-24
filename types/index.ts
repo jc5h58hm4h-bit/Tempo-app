@@ -11,8 +11,13 @@ export type Team = "blue" | "yellow";
  * "classic" : 2 manches, liste de mots partagée qui s'épuise.
  * "chrono" : chaque joueur joue une seule fois, 2 minutes chrono, 3 passes
  * maximum, le but est de deviner le plus de mots possible.
+ * "buzzer" : un joueur fait deviner, les autres ont chacun un buzzer.
+ * Premier arrivé, premier servi : le joueur qui a buzzé dit lui-même si sa
+ * réponse est juste ou fausse. 15 mots par tour, un tour par joueur.
  */
-export type GameMode = "classic" | "chrono";
+export type GameMode = "classic" | "chrono" | "buzzer";
+
+export const BUZZER_WORDS_PER_TURN = 15;
 
 export type GameStatus =
   | "lobby" // salon d'attente, la partie n'a pas démarré
@@ -63,6 +68,10 @@ export interface Game {
   currentPlayerId: string | null;
   currentTeam: Team | null;
   turnDurationSeconds: TurnDurationSeconds;
+  /** Mode buzzer uniquement : identifiant du mot actuellement en jeu. */
+  buzzerCurrentWordId: string | null;
+  /** Mode buzzer uniquement : qui a buzzé en premier pour ce mot (null = personne). */
+  buzzerPlayerId: string | null;
   createdAt: string;
   updatedAt: string;
 }
