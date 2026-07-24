@@ -15,6 +15,7 @@ function mapGame(row: any): Game {
     id: row.id,
     code: row.code,
     status: row.status,
+    mode: row.mode,
     hostPlayerId: row.host_player_id,
     currentRound: row.current_round,
     currentPlayerId: row.current_player_id,
