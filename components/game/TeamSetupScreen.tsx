@@ -9,6 +9,7 @@ import {
   startGameRounds,
   setGameMode,
 } from "@/app/actions/round-actions";
+import { startBuzzerGame } from "@/app/actions/buzzer-actions";
 import { TEAM_LABELS } from "@/lib/constants";
 import type { GameMode, Player, Team } from "@/types";
 
@@ -32,6 +33,7 @@ export function TeamSetupScreen({
   const [error, setError] = useState<string | undefined>();
 
   const teamsAssigned = players.length > 0 && players.every((p) => p.team !== null);
+  const isBuzzer = gameMode === "buzzer";
 
   function handleAuto() {
     setError(undefined);
@@ -52,7 +54,9 @@ export function TeamSetupScreen({
   function handleStart() {
     setError(undefined);
     startTransition(async () => {
-      const result = await startGameRounds(gameId, hostPlayerId);
+      const result = isBuzzer
+        ? await startBuzzerGame(gameId, hostPlayerId)
+        : await startGameRounds(gameId, hostPlayerId);
       if (!result.success) setError(result.error);
     });
   }
@@ -60,10 +64,12 @@ export function TeamSetupScreen({
   if (!isHost) {
     return (
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
-        <h2 className="font-display text-2xl font-semibold">Constitution des équipes</h2>
-        <p className="text-ink/60">L&apos;hôte prépare les équipes...</p>
+        <h2 className="font-display text-2xl font-semibold">
+          {isBuzzer ? "Préparation de la partie" : "Constitution des équipes"}
+        </h2>
+        <p className="text-ink/60">L&apos;hôte prépare la partie...</p>
         <GameModeBadge mode={gameMode} />
-        <TeamLists players={players} />
+        {!isBuzzer && <TeamLists players={players} />}
       </div>
     );
   }
@@ -71,37 +77,51 @@ export function TeamSetupScreen({
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-4 px-6 py-10">
       <h2 className="text-center font-display text-2xl font-semibold">
-        Constitution des équipes
+        {isBuzzer ? "Préparation de la partie" : "Constitution des équipes"}
       </h2>
 
       <GameModePicker mode={gameMode} onChange={handleChangeGameMode} disabled={isPending} />
 
-      {teamPickerMode === "choice" && !teamsAssigned && (
-        <div className="flex flex-col gap-3">
-          <Button onClick={handleAuto} disabled={isPending}>
-            Créer les équipes automatiquement
-          </Button>
-          <Button variant="secondary" onClick={() => setTeamPickerMode("manual")}>
-            Choisir les équipes manuellement
-          </Button>
-        </div>
-      )}
-
-      {teamPickerMode === "manual" && !teamsAssigned && (
-        <ManualTeamPicker
-          gameId={gameId}
-          hostPlayerId={hostPlayerId}
-          players={players}
-          onCancel={() => setTeamPickerMode("choice")}
-        />
-      )}
-
-      {teamsAssigned && (
+      {isBuzzer ? (
         <>
-          <TeamLists players={players} />
+          <Card className="text-sm text-ink/60">
+            Pas d&apos;équipes en mode Buzzer : chacun joue pour soi. Chaque joueur fait
+            deviner à son tour (15 mots), les autres buzzent pour répondre.
+          </Card>
           <Button variant="yellow" onClick={handleStart} disabled={isPending}>
             Commencer la partie
           </Button>
+        </>
+      ) : (
+        <>
+          {teamPickerMode === "choice" && !teamsAssigned && (
+            <div className="flex flex-col gap-3">
+              <Button onClick={handleAuto} disabled={isPending}>
+                Créer les équipes automatiquement
+              </Button>
+              <Button variant="secondary" onClick={() => setTeamPickerMode("manual")}>
+                Choisir les équipes manuellement
+              </Button>
+            </div>
+          )}
+
+          {teamPickerMode === "manual" && !teamsAssigned && (
+            <ManualTeamPicker
+              gameId={gameId}
+              hostPlayerId={hostPlayerId}
+              players={players}
+              onCancel={() => setTeamPickerMode("choice")}
+            />
+          )}
+
+          {teamsAssigned && (
+            <>
+              <TeamLists players={players} />
+              <Button variant="yellow" onClick={handleStart} disabled={isPending}>
+                Commencer la partie
+              </Button>
+            </>
+          )}
         </>
       )}
 
@@ -122,26 +142,41 @@ function GameModePicker({
   return (
     <Card className="flex flex-col gap-2">
       <p className="text-sm font-medium text-ink/70">Mode de jeu</p>
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-2">
+          <button
+            onClick={() => onChange("classic")}
+            disabled={disabled}
+            className={`flex-1 rounded-2xl px-3 py-3 text-left ${
+              mode === "classic" ? "bg-blue-deep text-cream" : "bg-ink/5 text-ink/60"
+            }`}
+          >
+            <p className="font-display font-semibold">Classique</p>
+            <p className="text-xs opacity-80">2 manches, mots partagés</p>
+          </button>
+          <button
+            onClick={() => onChange("chrono")}
+            disabled={disabled}
+            className={`flex-1 rounded-2xl px-3 py-3 text-left ${
+              mode === "chrono" ? "bg-yellow-vivid text-ink" : "bg-ink/5 text-ink/60"
+            }`}
+          >
+            <p className="font-display font-semibold">Chrono</p>
+            <p className="text-xs opacity-80">2 min par joueur, 3 passes max</p>
+          </button>
+        </div>
         <button
-          onClick={() => onChange("classic")}
+          onClick={() => onChange("buzzer")}
           disabled={disabled}
-          className={`flex-1 rounded-2xl px-3 py-3 text-left ${
-            mode === "classic" ? "bg-blue-deep text-cream" : "bg-ink/5 text-ink/60"
+          className={`w-full rounded-2xl px-3 py-3 text-left ${
+            mode === "buzzer" ? "bg-blue-deep text-cream" : "bg-ink/5 text-ink/60"
           }`}
         >
-          <p className="font-display font-semibold">Classique</p>
-          <p className="text-xs opacity-80">2 manches, mots partagés</p>
-        </button>
-        <button
-          onClick={() => onChange("chrono")}
-          disabled={disabled}
-          className={`flex-1 rounded-2xl px-3 py-3 text-left ${
-            mode === "chrono" ? "bg-yellow-vivid text-ink" : "bg-ink/5 text-ink/60"
-          }`}
-        >
-          <p className="font-display font-semibold">Chrono</p>
-          <p className="text-xs opacity-80">2 min par joueur, 3 passes max</p>
+          <p className="font-display font-semibold">Buzzer</p>
+          <p className="text-xs opacity-80">
+            Un joueur fait deviner, les autres buzzent — premier arrivé, premier servi. 15
+            mots par tour, chacun pour soi.
+          </p>
         </button>
       </div>
     </Card>
@@ -149,9 +184,10 @@ function GameModePicker({
 }
 
 function GameModeBadge({ mode }: { mode: GameMode }) {
+  const label = mode === "chrono" ? "Chrono" : mode === "buzzer" ? "Buzzer" : "Classique";
   return (
     <span className="rounded-full bg-ink/5 px-3 py-1 text-sm font-medium text-ink/60">
-      Mode : {mode === "chrono" ? "Chrono" : "Classique"}
+      Mode : {label}
     </span>
   );
 }
