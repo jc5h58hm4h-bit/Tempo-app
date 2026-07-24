@@ -2,11 +2,12 @@
 
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { shuffleArray } from "@/lib/utils";
-import { buildTurnOrder, nextPlayerInOrder } from "@/lib/turn-order";
+import { buildTurnOrder, nextPlayerInOrder, nextUnplayedPlayerInOrder } from "@/lib/turn-order";
 import { isRoundComplete, computeNextRoundNumber } from "@/lib/game-rules";
+import { DEFAULT_TURN_DURATION } from "@/lib/constants";
 import type { ActionResult } from "@/lib/action-result";
-import type { Player, Team } from "@/types";
-import { GAME_RULES } from "@/types";
+import type { GameMode, Player, Team } from "@/types";
+import { CHRONO_TURN_DURATION_SECONDS, GAME_RULES } from "@/types";
 
 async function assertIsHost(
   supabase: ReturnType<typeof getSupabaseServerClient>,
@@ -221,6 +222,27 @@ export async function assignTeamsManual(
 
 // --- Démarrage des manches --------------------------------------------
 
+/**
+ * Change le mode de la partie (classique ou chrono), avant le lancement.
+ * Appelée depuis l'écran de constitution des équipes.
+ */
+export async function setGameMode(
+  gameId: string,
+  hostPlayerId: string,
+  mode: GameMode
+): Promise<ActionResult<null>> {
+  const supabase = getSupabaseServerClient();
+  if (!(await assertIsHost(supabase, gameId, hostPlayerId))) {
+    return { success: false, error: "Seul l'hôte peut changer le mode de jeu." };
+  }
+
+  const { error } = await supabase.from("games").update({ mode }).eq("id", gameId);
+  if (error) {
+    return { success: false, error: "Impossible de changer le mode de jeu." };
+  }
+  return { success: true, data: null };
+}
+
 interface StartRoundResult {
   roundId: string;
   currentPlayerId: string;
@@ -236,6 +258,13 @@ export async function startGameRounds(
   if (!(await assertIsHost(supabase, gameId, hostPlayerId))) {
     return { success: false, error: "Seul l'hôte peut démarrer la partie." };
   }
+
+  const { data: gameRow } = await supabase
+    .from("games")
+    .select("mode")
+    .eq("id", gameId)
+    .maybeSingle();
+  const mode: GameMode = (gameRow?.mode as GameMode) ?? "classic";
 
   const { data: playerRows } = await supabase
     .from("players")
@@ -278,6 +307,8 @@ export async function startGameRounds(
       current_round: 1,
       current_player_id: first.id,
       current_team: first.team,
+      turn_duration_seconds:
+        mode === "chrono" ? CHRONO_TURN_DURATION_SECONDS : DEFAULT_TURN_DURATION,
     })
     .eq("id", gameId);
 
@@ -424,8 +455,14 @@ interface EndTurnResult {
 }
 
 /**
- * Termine le tour courant (temps écoulé ou manche complétée) et fait avancer
- * la partie : joueur suivant, ou passage à l'écran de fin de manche / partie.
+ * Termine le tour courant (temps écoulé ou pile de mots épuisée) et fait
+ * avancer la partie : joueur suivant, ou passage à l'écran de fin de
+ * manche / partie. Le comportement diffère selon le mode :
+ * - "classic" : la pile de mots épuisée termine toute la manche (round
+ *   partagé entre les joueurs).
+ * - "chrono" : chaque joueur ne joue qu'une fois ; la pile de mots vide ne
+ *   termine QUE le tour de ce joueur, pas la partie. La partie se termine
+ *   quand tout le monde a joué son unique tour.
  */
 export async function endTurn(
   gameId: string,
@@ -441,6 +478,59 @@ export async function endTurn(
     .update({ score: wordsFoundCount, ended_at: new Date().toISOString() })
     .eq("id", turnId);
 
+  const { data: gameRow } = await supabase
+    .from("games")
+    .select("mode, current_player_id")
+    .eq("id", gameId)
+    .maybeSingle();
+  const mode: GameMode = (gameRow?.mode as GameMode) ?? "classic";
+
+  // --- Mode chrono ------------------------------------------------------
+  if (mode === "chrono") {
+    const [{ data: playerRows }, { data: turnRows }] = await Promise.all([
+      supabase.from("players").select("*").eq("game_id", gameId).order("joined_at"),
+      supabase.from("turns").select("player_id").eq("round_id", roundId),
+    ]);
+    const players = (playerRows ?? []).map(mapPlayer);
+    const order = buildTurnOrder(players);
+    const playedPlayerIds = new Set((turnRows ?? []).map((t) => t.player_id as string));
+
+    const next = nextUnplayedPlayerInOrder(order, playedPlayerIds);
+
+    if (!next) {
+      // Tout le monde a joué son tour : fin de la partie chrono.
+      await supabase
+        .from("rounds")
+        .update({ status: "finished", ended_at: new Date().toISOString() })
+        .eq("id", roundId);
+      await supabase
+        .from("games")
+        .update({ status: "finished", current_player_id: null, current_team: null })
+        .eq("id", gameId);
+      await recordAnnualStats(supabase, gameId);
+
+      return {
+        success: true,
+        data: { gameStatus: "finished", nextPlayerId: null, nextTeam: null },
+      };
+    }
+
+    if (!next.team) {
+      return { success: false, error: "Impossible de déterminer le joueur suivant." };
+    }
+
+    await supabase
+      .from("games")
+      .update({ current_player_id: next.id, current_team: next.team })
+      .eq("id", gameId);
+
+    return {
+      success: true,
+      data: { gameStatus: "in_progress", nextPlayerId: next.id, nextTeam: next.team },
+    };
+  }
+
+  // --- Mode classique (comportement d'origine, inchangé) -----------------
   if (roundComplete) {
     const { data: round } = await supabase
       .from("rounds")
@@ -479,13 +569,7 @@ export async function endTurn(
   const players = (playerRows ?? []).map(mapPlayer);
   const order = buildTurnOrder(players);
 
-  const { data: game } = await supabase
-    .from("games")
-    .select("current_player_id")
-    .eq("id", gameId)
-    .maybeSingle();
-
-  const next = nextPlayerInOrder(order, game?.current_player_id ?? null);
+  const next = nextPlayerInOrder(order, gameRow?.current_player_id ?? null);
   if (!next || !next.team) {
     return { success: false, error: "Impossible de déterminer le joueur suivant." };
   }
