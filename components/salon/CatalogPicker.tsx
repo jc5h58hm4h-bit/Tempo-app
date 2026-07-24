@@ -10,6 +10,7 @@ import {
   CATALOG_DIFFICULTY_LABELS,
   CATALOG_WORD_COUNT_OPTIONS,
   CATALOG_REPEAT_EXCLUSION_GAMES,
+  CHRONO_CATALOG_WORD_COUNT,
 } from "@/lib/catalog";
 import type { CatalogCategory, CatalogDifficulty } from "@/lib/catalog";
 
@@ -146,7 +147,7 @@ export function CatalogPicker({
 
       <div className="flex items-center gap-2">
         <span className="text-sm text-ink/60">Nombre de mots :</span>
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {CATALOG_WORD_COUNT_OPTIONS.map((option) => (
             <button
               key={option}
@@ -160,6 +161,16 @@ export function CatalogPicker({
               {option}
             </button>
           ))}
+          <button
+            onClick={() => setCount(CHRONO_CATALOG_WORD_COUNT)}
+            className={`rounded-full px-3 h-8 text-sm font-medium ${
+              count === CHRONO_CATALOG_WORD_COUNT
+                ? "bg-yellow-vivid text-ink"
+                : "bg-ink/5 text-ink/50"
+            }`}
+          >
+            Chrono ({CHRONO_CATALOG_WORD_COUNT})
+          </button>
         </div>
       </div>
 
