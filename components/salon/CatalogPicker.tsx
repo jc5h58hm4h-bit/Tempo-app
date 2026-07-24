@@ -36,6 +36,12 @@ export function CatalogPicker({
     );
   }
 
+  function toggleAllCategories() {
+    setSelectedCategories((current) =>
+      current.length === CATALOG_CATEGORIES.length ? [] : [...CATALOG_CATEGORIES]
+    );
+  }
+
   function toggleDifficulty(difficulty: CatalogDifficulty) {
     setSelectedDifficulties((current) =>
       current.includes(difficulty)
@@ -85,6 +91,16 @@ export function CatalogPicker({
           Catégories
         </p>
         <div className="flex flex-wrap gap-2">
+          <button
+            onClick={toggleAllCategories}
+            className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+              selectedCategories.length === CATALOG_CATEGORIES.length
+                ? "bg-blue-deep text-cream"
+                : "bg-ink/10 text-ink/70"
+            }`}
+          >
+            Tous
+          </button>
           {CATALOG_CATEGORIES.map((category) => {
             const isSelected = selectedCategories.includes(category);
             return (
