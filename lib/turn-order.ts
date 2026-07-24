@@ -32,3 +32,15 @@ export function nextPlayerInOrder(
   if (currentIndex === -1) return order[0] ?? null;
   return order[(currentIndex + 1) % order.length] ?? null;
 }
+
+/**
+ * Mode chrono uniquement : renvoie le premier joueur de l'ordre de passage
+ * qui n'a pas encore joué son tour (ensemble playedPlayerIds), ou null si
+ * tout le monde a déjà joué — signal que la partie chrono est terminée.
+ */
+export function nextUnplayedPlayerInOrder(
+  order: Player[],
+  playedPlayerIds: Set<string>
+): Player | null {
+  return order.find((p) => !playedPlayerIds.has(p.id)) ?? null;
+}
