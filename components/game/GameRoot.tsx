@@ -14,6 +14,7 @@ import { FinalScreen } from "@/components/game/FinalScreen";
 import { PlayerManagementDrawer } from "@/components/game/PlayerManagementDrawer";
 import { startTurn, recordGuessedWord, endTurn, startNextRound } from "@/app/actions/round-actions";
 import { markPlayerConnected } from "@/app/actions/game-actions";
+import { CHRONO_MAX_PASSES } from "@/types";
 import type { Game, Player, Round, Word } from "@/types";
 
 interface WordQueueItem {
@@ -132,6 +133,7 @@ export function GameRoot({
           hostPlayerId={game.hostPlayerId}
           isHost={isHost}
           players={players}
+          gameMode={game.mode}
         />
       );
     }
@@ -167,6 +169,7 @@ export function GameRoot({
           hostPlayerId={game.hostPlayerId}
           isHost={isHost}
           players={players}
+          gameMode={game.mode}
         />
       );
     }
@@ -178,10 +181,12 @@ export function GameRoot({
             <PlayingScreen
               round={currentRound.roundNumber}
               team={currentPlayer.team}
+              mode={game.mode}
               durationSeconds={game.turnDurationSeconds}
               initialQueue={turnData.queue}
               blueScore={currentRound.blueTeamScore}
               yellowScore={currentRound.yellowTeamScore}
+              maxPasses={game.mode === "chrono" ? CHRONO_MAX_PASSES : undefined}
               onWordFound={handleWordFound}
               onTurnEnd={handleTurnEnd}
             />
