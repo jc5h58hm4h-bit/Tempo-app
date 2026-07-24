@@ -9,7 +9,7 @@ import { replaySameWords, newGameSamePlayers } from "@/app/actions/round-actions
 import { clearPlayerSession } from "@/lib/session";
 import { TEAM_LABELS } from "@/lib/constants";
 import { sumRoundScores, determineWinningTeam } from "@/lib/game-rules";
-import type { Player } from "@/types";
+import type { GameMode, Player } from "@/types";
 
 interface RoundResult {
   roundNumber: number;
@@ -24,12 +24,14 @@ export function FinalScreen({
   hostPlayerId,
   isHost,
   players,
+  gameMode,
 }: {
   gameId: string;
   gameCode: string;
   hostPlayerId: string;
   isHost: boolean;
   players: Player[];
+  gameMode: GameMode;
 }) {
   const router = useRouter();
   const [rounds, setRounds] = useState<RoundResult[]>([]);
@@ -47,13 +49,18 @@ export function FinalScreen({
         setRounds(
           (data ?? []).map((r) => ({
             roundNumber: r.round_number,
-            name: r.round_number === 1 ? "Description libre" : "Un seul mot",
+            name:
+              gameMode === "chrono"
+                ? "Chrono"
+                : r.round_number === 1
+                  ? "Description libre"
+                  : "Un seul mot",
             blueScore: r.blue_team_score,
             yellowScore: r.yellow_team_score,
           }))
         );
       });
-  }, [gameId]);
+  }, [gameId, gameMode]);
 
   // Un mot trouvé est enregistré avec l'identifiant du joueur qui FAISAIT
   // deviner (celui qui tenait le téléphone). Ici on veut au contraire créditer
@@ -159,9 +166,7 @@ export function FinalScreen({
         <div className="flex flex-col gap-1 border-t border-ink/10 pt-3 text-sm">
           {rounds.map((r) => (
             <div key={r.roundNumber} className="flex justify-between text-ink/60">
-              <span>
-                Manche {r.roundNumber} — {r.name}
-              </span>
+              <span>{gameMode === "chrono" ? r.name : `Manche ${r.roundNumber} — ${r.name}`}</span>
               <span>
                 {r.blueScore} – {r.yellowScore}
               </span>
