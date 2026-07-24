@@ -20,6 +20,8 @@ function mapGame(row: any): Game {
     currentPlayerId: row.current_player_id,
     currentTeam: row.current_team,
     turnDurationSeconds: row.turn_duration_seconds,
+    buzzerCurrentWordId: row.buzzer_current_word_id,
+    buzzerPlayerId: row.buzzer_player_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
