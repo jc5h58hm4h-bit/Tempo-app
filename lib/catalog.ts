@@ -58,4 +58,4 @@ export const CATALOG_REPEAT_EXCLUSION_GAMES = 20;
 export const CATALOG_WORD_COUNT_OPTIONS = [10, 20, 30, 40] as const;
 
 /** Raccourci "Chrono" : pioche directement un gros volume de mots en un coup. */
-export const CHRONO_CATALOG_WORD_COUNT = 150;
+export const CHRONO_CATALOG_WORD_COUNT = 90;
