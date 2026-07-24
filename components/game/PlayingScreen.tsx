@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { Timer } from "@/components/game/Timer";
 import { ScoreBar } from "@/components/game/ScoreBar";
 import { Button } from "@/components/ui/Button";
-import type { RoundNumber, Team } from "@/types";
+import type { GameMode, RoundNumber, Team } from "@/types";
 
 interface WordQueueItem {
   id: string;
@@ -14,10 +14,13 @@ interface WordQueueItem {
 interface PlayingScreenProps {
   round: RoundNumber;
   team: Team;
+  mode: GameMode;
   durationSeconds: number;
   initialQueue: WordQueueItem[];
   blueScore: number;
   yellowScore: number;
+  /** Nombre de passes maximum pour ce tour. undefined = illimité (mode classique). */
+  maxPasses?: number;
   onWordFound: (word: WordQueueItem) => Promise<{ success: boolean; roundComplete: boolean }>;
   onTurnEnd: (foundWords: WordQueueItem[], roundComplete: boolean) => void;
 }
@@ -25,10 +28,12 @@ interface PlayingScreenProps {
 export function PlayingScreen({
   round,
   team,
+  mode,
   durationSeconds,
   initialQueue,
   blueScore,
   yellowScore,
+  maxPasses,
   onWordFound,
   onTurnEnd,
 }: PlayingScreenProps) {
@@ -37,6 +42,7 @@ export function PlayingScreen({
   const [scores, setScores] = useState({ blue: blueScore, yellow: yellowScore });
   const [isBlocked, setIsBlocked] = useState(false);
   const isBlockedRef = useRef(false);
+  const [passesUsed, setPassesUsed] = useState(0);
   // Empêche un double-appui rapide sur "Trouvé" d'envoyer deux requêtes pour
   // le même mot (la deuxième échouerait silencieusement côté serveur, mais
   // sans ce verrou la pile locale avançait quand même, sautant le mot suivant
@@ -44,6 +50,7 @@ export function PlayingScreen({
   const isSubmittingRef = useRef(false);
 
   const currentWord = queue[0];
+  const passLimitReached = maxPasses !== undefined && passesUsed >= maxPasses;
 
   const handleExpire = useCallback(() => {
     isBlockedRef.current = true;
@@ -81,15 +88,17 @@ export function PlayingScreen({
 
   function handlePass() {
     if (!currentWord || isBlockedRef.current || queue.length <= 1) return;
+    if (passLimitReached) return;
     setQueue((q) => {
       const [first, ...rest] = q;
       return first ? [...rest, first] : q;
     });
+    setPassesUsed((p) => p + 1);
   }
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-4 px-6 py-6">
-      <ScoreBar round={round} blueScore={scores.blue} yellowScore={scores.yellow} />
+      <ScoreBar round={round} blueScore={scores.blue} yellowScore={scores.yellow} mode={mode} />
 
       <div className="flex justify-center">
         <Timer durationSeconds={durationSeconds} isRunning={!isBlocked} onExpire={handleExpire} />
@@ -103,8 +112,18 @@ export function PlayingScreen({
         </div>
       </div>
 
+      {maxPasses !== undefined && (
+        <p className="text-center text-xs text-ink/40">
+          Passes restantes : {Math.max(0, maxPasses - passesUsed)} / {maxPasses}
+        </p>
+      )}
+
       <div className="sticky bottom-4 flex gap-3 pb-safe">
-        <Button variant="secondary" onClick={handlePass} disabled={isBlocked || queue.length <= 1}>
+        <Button
+          variant="secondary"
+          onClick={handlePass}
+          disabled={isBlocked || queue.length <= 1 || passLimitReached}
+        >
           Passer
         </Button>
         <Button variant="primary" onClick={handleFound} disabled={isBlocked || !currentWord}>
