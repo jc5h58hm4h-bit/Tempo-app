@@ -12,7 +12,10 @@ import { SpectatorScreen } from "@/components/game/SpectatorScreen";
 import { RoundSummary } from "@/components/game/RoundSummary";
 import { FinalScreen } from "@/components/game/FinalScreen";
 import { PlayerManagementDrawer } from "@/components/game/PlayerManagementDrawer";
+import { BuzzerDescriberScreen } from "@/components/game/BuzzerDescriberScreen";
+import { BuzzerGuesserScreen } from "@/components/game/BuzzerGuesserScreen";
 import { startTurn, recordGuessedWord, endTurn, startNextRound } from "@/app/actions/round-actions";
+import { startBuzzerTurn, pressBuzzer, resolveBuzz } from "@/app/actions/buzzer-actions";
 import { markPlayerConnected } from "@/app/actions/game-actions";
 import { CHRONO_MAX_PASSES } from "@/types";
 import type { Game, Player, Round, Word } from "@/types";
@@ -53,12 +56,14 @@ export function GameRoot({
     null
   );
   const [summaryWords, setSummaryWords] = useState<string[]>([]);
+  const [buzzerWordQueue, setBuzzerWordQueue] = useState<WordQueueItem[] | null>(null);
 
   const currentPlayer = players.find((p) => p.id === currentPlayerId);
   const isHost = game.hostPlayerId === currentPlayerId;
   const isMyTurn = game.currentPlayerId === currentPlayerId;
   const currentRound = rounds.find((r) => r.roundNumber === game.currentRound) ?? null;
   const activePlayer = players.find((p) => p.id === game.currentPlayerId) ?? null;
+  const isBuzzerMode = game.mode === "buzzer";
 
   usePresence(game.id, currentPlayerId);
 
@@ -80,11 +85,22 @@ export function GameRoot({
     if (isMyTurn && game.status === "in_progress") {
       setTurnPhase("transition");
       setTurnData(null);
+      setBuzzerWordQueue(null);
     }
   }, [isMyTurn, game.status, game.currentPlayerId]);
 
   async function handleReady() {
-    if (!currentRound || !currentPlayer?.team) return;
+    if (!currentRound) return;
+
+    if (isBuzzerMode) {
+      const result = await startBuzzerTurn(game.id, currentRound.id, currentPlayerId);
+      if (!result.success) return;
+      setBuzzerWordQueue(result.data.wordQueue);
+      setTurnPhase("playing");
+      return;
+    }
+
+    if (!currentPlayer?.team) return;
     const result = await startTurn(game.id, currentRound.id, currentPlayerId, currentPlayer.team);
     if (!result.success) return;
     setTurnData({ turnId: result.data.turnId, queue: result.data.wordQueue });
@@ -121,6 +137,15 @@ export function GameRoot({
 
   async function handleNextRound() {
     await startNextRound(game.id, game.hostPlayerId);
+  }
+
+  async function handleBuzz() {
+    await pressBuzzer(game.id, currentPlayerId);
+  }
+
+  async function handleResolveBuzz(correct: boolean) {
+    if (!currentRound || !activePlayer) return;
+    await resolveBuzz(game.id, currentRound.id, activePlayer.id, currentPlayerId, correct);
   }
 
   // --- Rendu ---------------------------------------------------------
@@ -174,7 +199,53 @@ export function GameRoot({
       );
     }
 
-    if (game.status === "in_progress" && currentRound) {
+    // --- Mode Buzzer : tous les joueurs sont actifs en même temps -------
+    if (game.status === "in_progress" && currentRound && isBuzzerMode) {
+      if (isMyTurn) {
+        if (turnPhase === "playing" && buzzerWordQueue) {
+          const currentIndex = Math.max(
+            0,
+            buzzerWordQueue.findIndex((w) => w.id === game.buzzerCurrentWordId)
+          );
+          const currentWord = buzzerWordQueue[currentIndex];
+          const buzzerNickname =
+            players.find((p) => p.id === game.buzzerPlayerId)?.nickname ?? null;
+
+          return (
+            <BuzzerDescriberScreen
+              word={currentWord?.content ?? "…"}
+              wordsRemaining={buzzerWordQueue.length - currentIndex}
+              totalWords={buzzerWordQueue.length}
+              buzzerNickname={buzzerNickname}
+            />
+          );
+        }
+        return (
+          <TransitionScreen
+            playerNickname={currentPlayer?.nickname ?? ""}
+            team={null}
+            onReady={handleReady}
+          />
+        );
+      }
+
+      if (activePlayer) {
+        const buzzerNickname =
+          players.find((p) => p.id === game.buzzerPlayerId)?.nickname ?? null;
+        return (
+          <BuzzerGuesserScreen
+            describerNickname={activePlayer.nickname}
+            buzzerNickname={buzzerNickname}
+            isBuzzer={game.buzzerPlayerId === currentPlayerId}
+            onBuzz={handleBuzz}
+            onResolve={handleResolveBuzz}
+          />
+        );
+      }
+    }
+
+    // --- Modes Classique / Chrono ----------------------------------------
+    if (game.status === "in_progress" && currentRound && !isBuzzerMode) {
       if (isMyTurn && currentPlayer?.team) {
         if (turnPhase === "playing" && turnData) {
           return (
