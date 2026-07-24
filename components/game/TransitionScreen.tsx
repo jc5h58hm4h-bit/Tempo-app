@@ -8,20 +8,23 @@ export function TransitionScreen({
   onReady,
 }: {
   playerNickname: string;
-  team: Team;
+  /** null en mode Buzzer, où il n'y a pas d'équipes. */
+  team: Team | null;
   onReady: () => void;
 }) {
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-6 px-6 text-center">
       <p className="text-ink/50">C&apos;est au tour de</p>
       <h2 className="font-display text-3xl font-semibold">{playerNickname}</h2>
-      <span
-        className={`rounded-full px-4 py-1 text-sm font-semibold ${
-          team === "blue" ? "bg-blue-pale text-blue-deep" : "bg-yellow-pale text-ink"
-        }`}
-      >
-        {TEAM_LABELS[team]}
-      </span>
+      {team && (
+        <span
+          className={`rounded-full px-4 py-1 text-sm font-semibold ${
+            team === "blue" ? "bg-blue-pale text-blue-deep" : "bg-yellow-pale text-ink"
+          }`}
+        >
+          {TEAM_LABELS[team]}
+        </span>
+      )}
       <p className="text-ink/60">Passe le téléphone à {playerNickname}.</p>
       <div className="w-full">
         <Button onClick={onReady}>Je suis prêt</Button>
