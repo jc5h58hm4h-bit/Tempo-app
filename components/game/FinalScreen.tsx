@@ -66,8 +66,11 @@ export function FinalScreen({
   // deviner (celui qui tenait le téléphone). Ici on veut au contraire créditer
   // le ou les coéquipiers qui ont DEVINÉ le mot. Dans une équipe de 2, le mot
   // est donc crédité à l'autre membre de l'équipe ; dans une équipe d'1 seul
-  // joueur, les deux rôles se confondent et le mot lui reste crédité.
+  // joueur, les deux rôles se confondent et le mot lui reste crédité. En mode
+  // Buzzer il n'y a pas d'équipes : ce calcul ne sert pas (on utilise
+  // directement le score du joueur, qui cumule déjà ses deux rôles).
   useEffect(() => {
+    if (gameMode === "buzzer") return;
     const supabase = getSupabaseBrowserClient();
     supabase
       .from("guessed_words")
@@ -95,19 +98,7 @@ export function FinalScreen({
         }
         setGuessedCounts(counts);
       });
-  }, [gameId, players]);
-
-  const { blue: totalBlue, yellow: totalYellow } = sumRoundScores(
-    rounds.map((r) => ({ blueTeamScore: r.blueScore, yellowTeamScore: r.yellowScore }))
-  );
-  const winner = determineWinningTeam(totalBlue, totalYellow);
-  const isTie = winner === "tie";
-
-  const rankedPlayers = [...players].sort(
-    (a, b) => (guessedCounts[b.id] ?? 0) - (guessedCounts[a.id] ?? 0)
-  );
-  const bestPlayer = rankedPlayers[0];
-  const bestPlayerCount = bestPlayer ? guessedCounts[bestPlayer.id] ?? 0 : 0;
+  }, [gameId, players, gameMode]);
 
   function handleReplay() {
     startTransition(async () => {
@@ -141,6 +132,82 @@ export function FinalScreen({
   function handleHome() {
     router.push("/");
   }
+
+  const actionButtons = (
+    <div className="flex flex-col gap-2">
+      {isHost && (
+        <>
+          <Button variant="primary" onClick={handleReplay} disabled={isPending}>
+            Rejouer avec les mêmes mots
+          </Button>
+          <Button variant="yellow" onClick={handleNewGameSamePlayers} disabled={isPending}>
+            Nouvelle partie (mêmes joueurs)
+          </Button>
+        </>
+      )}
+      {!isHost && (
+        <p className="text-center text-sm text-ink/40">
+          En attente que l&apos;hôte relance une partie...
+        </p>
+      )}
+      <Button variant="secondary" onClick={handleNewGame}>
+        Nouvelle partie (nouveau code)
+      </Button>
+      <Button variant="ghost" onClick={handleHome}>
+        Retour à l&apos;accueil
+      </Button>
+    </div>
+  );
+
+  // --- Mode Buzzer : classement individuel, pas d'équipes -----------------
+  if (gameMode === "buzzer") {
+    const ranked = [...players].sort((a, b) => b.score - a.score);
+    const topScore = ranked[0]?.score ?? 0;
+    const winnersCount = ranked.filter((p) => p.score === topScore).length;
+    const isTie = winnersCount > 1 && topScore > 0;
+
+    return (
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-4 px-6 py-10 animate-pop-in">
+        <div className="text-center">
+          <p className="text-4xl">🏆</p>
+          <h2 className="mt-2 font-display text-3xl font-semibold">
+            {isTie ? "Égalité !" : ranked[0] ? `${ranked[0].nickname} gagne !` : "Partie terminée"}
+          </h2>
+        </div>
+
+        <Card className="flex flex-col gap-1.5">
+          <p className="mb-1 text-sm font-medium text-ink/60">Classement</p>
+          {ranked.map((player, index) => (
+            <div
+              key={player.id}
+              className="flex items-center justify-between rounded-xl bg-cream px-3 py-2 text-sm"
+            >
+              <div className="flex items-center gap-2">
+                <span className="w-4 text-ink/40">{index + 1}</span>
+                <span className="font-medium">{player.nickname}</span>
+              </div>
+              <span className="font-display font-semibold text-blue-deep">{player.score} pts</span>
+            </div>
+          ))}
+        </Card>
+
+        {actionButtons}
+      </div>
+    );
+  }
+
+  // --- Modes Classique / Chrono : scores par équipe ------------------------
+  const { blue: totalBlue, yellow: totalYellow } = sumRoundScores(
+    rounds.map((r) => ({ blueTeamScore: r.blueScore, yellowTeamScore: r.yellowScore }))
+  );
+  const winner = determineWinningTeam(totalBlue, totalYellow);
+  const isTie = winner === "tie";
+
+  const rankedPlayers = [...players].sort(
+    (a, b) => (guessedCounts[b.id] ?? 0) - (guessedCounts[a.id] ?? 0)
+  );
+  const bestPlayer = rankedPlayers[0];
+  const bestPlayerCount = bestPlayer ? guessedCounts[bestPlayer.id] ?? 0 : 0;
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-4 px-6 py-10 animate-pop-in">
@@ -196,29 +263,7 @@ export function FinalScreen({
         ))}
       </Card>
 
-      <div className="flex flex-col gap-2">
-        {isHost && (
-          <>
-            <Button variant="primary" onClick={handleReplay} disabled={isPending}>
-              Rejouer avec les mêmes mots
-            </Button>
-            <Button variant="yellow" onClick={handleNewGameSamePlayers} disabled={isPending}>
-              Nouvelle partie (mêmes joueurs)
-            </Button>
-          </>
-        )}
-        {!isHost && (
-          <p className="text-center text-sm text-ink/40">
-            En attente que l&apos;hôte relance une partie...
-          </p>
-        )}
-        <Button variant="secondary" onClick={handleNewGame}>
-          Nouvelle partie (nouveau code)
-        </Button>
-        <Button variant="ghost" onClick={handleHome}>
-          Retour à l&apos;accueil
-        </Button>
-      </div>
+      {actionButtons}
     </div>
   );
 }
