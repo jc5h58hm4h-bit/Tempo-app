@@ -6,11 +6,14 @@ export function TransitionScreen({
   playerNickname,
   team,
   onReady,
+  error,
 }: {
   playerNickname: string;
   /** null en mode Buzzer, où il n'y a pas d'équipes. */
   team: Team | null;
   onReady: () => void;
+  /** Message affiché si le démarrage du tour a échoué côté serveur. */
+  error?: string;
 }) {
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-6 px-6 text-center">
@@ -29,6 +32,7 @@ export function TransitionScreen({
       <div className="w-full">
         <Button onClick={onReady}>Je suis prêt</Button>
       </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   );
 }
