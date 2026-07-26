@@ -144,8 +144,8 @@ export function GameRoot({
   }
 
   async function handleResolveBuzz(correct: boolean) {
-    if (!currentRound || !activePlayer) return;
-    await resolveBuzz(game.id, currentRound.id, activePlayer.id, currentPlayerId, correct);
+    if (!currentRound || !game.buzzerPlayerId) return;
+    await resolveBuzz(game.id, currentRound.id, currentPlayerId, game.buzzerPlayerId, correct);
   }
 
   // --- Rendu ---------------------------------------------------------
@@ -217,6 +217,7 @@ export function GameRoot({
               wordsRemaining={buzzerWordQueue.length - currentIndex}
               totalWords={buzzerWordQueue.length}
               buzzerNickname={buzzerNickname}
+              onResolve={handleResolveBuzz}
             />
           );
         }
@@ -238,7 +239,6 @@ export function GameRoot({
             buzzerNickname={buzzerNickname}
             isBuzzer={game.buzzerPlayerId === currentPlayerId}
             onBuzz={handleBuzz}
-            onResolve={handleResolveBuzz}
           />
         );
       }
