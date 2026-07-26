@@ -23,4 +23,4 @@ export const TEAM_LABELS = {
  * Liste de pseudos prédéfinis proposés à l'accueil, pour aller plus vite
  * plutôt que de taper son prénom à chaque partie.
  */
-export const PRESET_NICKNAMES = ["Florian", "Guillaume", "Pierre", "Antoine", "Camille"];
+export const PRESET_NICKNAMES = ["Florian", "Guillaume", "Pierre", "Antoine", "Camille", "Natacha", "Laetitia", "Carole"];
