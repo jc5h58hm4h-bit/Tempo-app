@@ -3,7 +3,7 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { shuffleArray } from "@/lib/utils";
 import { nextUnplayedPlayerInOrder } from "@/lib/turn-order";
-import { BUZZER_WORDS_PER_TURN, GAME_RULES } from "@/types";
+import { DEFAULT_BUZZER_WORDS_PER_TURN, GAME_RULES } from "@/types";
 import type { ActionResult } from "@/lib/action-result";
 import type { Player } from "@/types";
 
@@ -86,6 +86,30 @@ async function recordBuzzerAnnualStats(
   );
 }
 
+/**
+ * Change le nombre de mots proposés à chaque joueur qui fait deviner en
+ * mode Buzzer, avant le lancement de la partie.
+ */
+export async function setBuzzerWordsPerTurn(
+  gameId: string,
+  hostPlayerId: string,
+  wordsPerTurn: number
+): Promise<ActionResult<null>> {
+  const supabase = getSupabaseServerClient();
+  if (!(await assertIsHost(supabase, gameId, hostPlayerId))) {
+    return { success: false, error: "Seul l'hôte peut changer ce réglage." };
+  }
+
+  const { error } = await supabase
+    .from("games")
+    .update({ buzzer_words_per_turn: wordsPerTurn })
+    .eq("id", gameId);
+  if (error) {
+    return { success: false, error: "Impossible de changer ce réglage." };
+  }
+  return { success: true, data: null };
+}
+
 interface StartBuzzerGameResult {
   roundId: string;
   describerId: string;
@@ -161,7 +185,7 @@ interface StartBuzzerTurnResult {
   wordQueue: { id: string; content: string }[];
 }
 
-/** Démarre le tour d'un joueur qui fait deviner : sélectionne jusqu'à 15 mots. */
+/** Démarre le tour d'un joueur qui fait deviner : sélectionne les mots de son lot. */
 export async function startBuzzerTurn(
   gameId: string,
   roundId: string,
@@ -169,15 +193,25 @@ export async function startBuzzerTurn(
 ): Promise<ActionResult<StartBuzzerTurnResult>> {
   const supabase = getSupabaseServerClient();
 
+  const { data: game } = await supabase
+    .from("games")
+    .select("buzzer_words_per_turn")
+    .eq("id", gameId)
+    .maybeSingle();
+  const wordsPerTurn = game?.buzzer_words_per_turn ?? DEFAULT_BUZZER_WORDS_PER_TURN;
+
   const { data: words } = await supabase
     .from("words")
     .select("id, content")
     .eq("game_id", gameId)
     .eq("is_active", true);
 
-  const batch = shuffleArray(words ?? []).slice(0, BUZZER_WORDS_PER_TURN);
+  const batch = shuffleArray(words ?? []).slice(0, wordsPerTurn);
   if (batch.length === 0) {
-    return { success: false, error: "Plus aucun mot disponible pour ce tour." };
+    return {
+      success: false,
+      error: "Plus aucun mot disponible : ajoute plus de mots dans le salon (le mode Buzzer a besoin d'un lot distinct par joueur).",
+    };
   }
 
   const { data: turn, error: turnError } = await supabase
