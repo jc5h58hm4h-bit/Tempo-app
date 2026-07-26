@@ -17,7 +17,8 @@ export type Team = "blue" | "yellow";
  */
 export type GameMode = "classic" | "chrono" | "buzzer";
 
-export const BUZZER_WORDS_PER_TURN = 15;
+export const BUZZER_WORDS_PER_TURN_OPTIONS = [10, 15, 20] as const;
+export const DEFAULT_BUZZER_WORDS_PER_TURN = 15;
 
 export type GameStatus =
   | "lobby" // salon d'attente, la partie n'a pas démarré
@@ -72,6 +73,8 @@ export interface Game {
   buzzerCurrentWordId: string | null;
   /** Mode buzzer uniquement : qui a buzzé en premier pour ce mot (null = personne). */
   buzzerPlayerId: string | null;
+  /** Mode buzzer uniquement : nombre de mots proposés à chaque joueur qui fait deviner. */
+  buzzerWordsPerTurn: number;
   createdAt: string;
   updatedAt: string;
 }
