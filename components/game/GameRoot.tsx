@@ -159,6 +159,7 @@ export function GameRoot({
           isHost={isHost}
           players={players}
           gameMode={game.mode}
+          buzzerWordsPerTurn={game.buzzerWordsPerTurn}
         />
       );
     }
