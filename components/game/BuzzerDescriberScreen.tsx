@@ -1,16 +1,30 @@
+"use client";
+
+import { useTransition } from "react";
 import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 
 export function BuzzerDescriberScreen({
   word,
   wordsRemaining,
   totalWords,
   buzzerNickname,
+  onResolve,
 }: {
   word: string;
   wordsRemaining: number;
   totalWords: number;
   buzzerNickname: string | null;
+  onResolve: (correct: boolean) => void;
 }) {
+  const [isPending, startTransition] = useTransition();
+
+  function handleResolve(correct: boolean) {
+    startTransition(() => {
+      onResolve(correct);
+    });
+  }
+
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-4 px-6 py-6">
       <p className="text-center text-sm font-medium text-ink/50">
@@ -25,15 +39,25 @@ export function BuzzerDescriberScreen({
         </div>
       </div>
 
-      <Card tone={buzzerNickname ? "yellow" : "cream"} className="text-center">
-        {buzzerNickname ? (
-          <p className="font-display text-lg font-semibold">
-            {buzzerNickname} a buzzé !
-          </p>
-        ) : (
+      {buzzerNickname ? (
+        <div className="flex flex-col gap-3">
+          <Card tone="yellow" className="text-center">
+            <p className="font-display text-lg font-semibold">
+              {buzzerNickname} a buzzé — sa réponse était...
+            </p>
+          </Card>
+          <Button variant="primary" onClick={() => handleResolve(true)} disabled={isPending}>
+            Bonne réponse (+1 pour {buzzerNickname} et toi)
+          </Button>
+          <Button variant="secondary" onClick={() => handleResolve(false)} disabled={isPending}>
+            Mauvaise réponse (-1 pour {buzzerNickname})
+          </Button>
+        </div>
+      ) : (
+        <Card tone="cream" className="text-center">
           <p className="text-ink/60">En attente d&apos;un buzz...</p>
-        )}
-      </Card>
+        </Card>
+      )}
     </div>
   );
 }
