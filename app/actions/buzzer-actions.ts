@@ -243,15 +243,15 @@ interface ResolveBuzzResult {
 }
 
 /**
- * Le joueur qui a buzzé indique si sa réponse était juste ou fausse.
+ * Celui qui fait deviner valide la réponse dite à voix haute par le joueur
+ * qui a buzzé (c'est lui qui l'a entendue, l'appli ne peut pas le savoir).
  * Juste : lui et celui qui faisait deviner gagnent chacun 1 point.
- * Faux : le mot est perdu, on passe directement au suivant.
+ * Faux : celui qui a buzzé perd 1 point, le mot est perdu, on passe
+ * directement au suivant.
  * Dans les deux cas, le mot est retiré de la pile pour le reste de la partie.
  *
- * Ne prend pas turnId en paramètre : seul le joueur qui fait deviner le
- * connaît (il l'a reçu au démarrage de son tour), pas celui qui buzze. On
- * retrouve donc le tour actif directement à partir de la manche et de qui
- * fait deviner.
+ * Ne prend pas turnId en paramètre : on retrouve le tour actif directement
+ * à partir de la manche et de qui fait deviner.
  */
 export async function resolveBuzz(
   gameId: string,
@@ -307,6 +307,18 @@ export async function resolveBuzz(
         .update({ score: (describer?.score ?? 0) + 1 })
         .eq("id", describerId),
     ]);
+  } else {
+    // Mauvaise réponse : celui qui a buzzé perd 1 point (le mot est perdu
+    // quoi qu'il arrive, voir plus bas).
+    const { data: buzzer } = await supabase
+      .from("players")
+      .select("score")
+      .eq("id", buzzerId)
+      .maybeSingle();
+    await supabase
+      .from("players")
+      .update({ score: (buzzer?.score ?? 0) - 1 })
+      .eq("id", buzzerId);
   }
 
   const nextPosition = turn.queue_position + 1;
