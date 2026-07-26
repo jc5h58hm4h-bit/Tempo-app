@@ -2,14 +2,12 @@
 
 import { useTransition } from "react";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 
 export function BuzzerGuesserScreen({
   describerNickname,
   buzzerNickname,
   isBuzzer,
   onBuzz,
-  onResolve,
 }: {
   describerNickname: string;
   /** Pseudo de qui a buzzé, ou null si personne n'a encore buzzé. */
@@ -17,7 +15,6 @@ export function BuzzerGuesserScreen({
   /** true si CE joueur est celui qui a buzzé. */
   isBuzzer: boolean;
   onBuzz: () => void;
-  onResolve: (correct: boolean) => void;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -27,24 +24,15 @@ export function BuzzerGuesserScreen({
     });
   }
 
-  function handleResolve(correct: boolean) {
-    startTransition(() => {
-      onResolve(correct);
-    });
-  }
-
   if (isBuzzer) {
     return (
-      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-6 px-6 text-center">
-        <p className="text-ink/50">Ta réponse était...</p>
-        <div className="flex w-full flex-col gap-3">
-          <Button variant="primary" onClick={() => handleResolve(true)} disabled={isPending}>
-            Bonne réponse (+1 pour toi et {describerNickname})
-          </Button>
-          <Button variant="secondary" onClick={() => handleResolve(false)} disabled={isPending}>
-            Mauvaise réponse
-          </Button>
-        </div>
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
+        <p className="text-ink/50">Dis ta réponse à voix haute !</p>
+        <Card tone="yellow" className="w-full">
+          <p className="font-display text-lg font-semibold">
+            En attente que {describerNickname} valide ta réponse...
+          </p>
+        </Card>
       </div>
     );
   }
@@ -53,9 +41,9 @@ export function BuzzerGuesserScreen({
     return (
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
         <p className="text-ink/50">{describerNickname} fait deviner</p>
-        <Card tone="yellow" className="w-full">
+        <Card className="w-full">
           <p className="font-display text-lg font-semibold">
-            {buzzerNickname} a buzzé, en attente de sa réponse...
+            {buzzerNickname} a buzzé, en attente de la validation...
           </p>
         </Card>
       </div>
