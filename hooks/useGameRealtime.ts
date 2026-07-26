@@ -26,6 +26,7 @@ function mapGame(row: any): Game {
     turnDurationSeconds: row.turn_duration_seconds,
     buzzerCurrentWordId: row.buzzer_current_word_id,
     buzzerPlayerId: row.buzzer_player_id,
+    buzzerWordsPerTurn: row.buzzer_words_per_turn,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
