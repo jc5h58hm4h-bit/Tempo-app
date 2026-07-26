@@ -9,8 +9,9 @@ import {
   startGameRounds,
   setGameMode,
 } from "@/app/actions/round-actions";
-import { startBuzzerGame } from "@/app/actions/buzzer-actions";
+import { startBuzzerGame, setBuzzerWordsPerTurn } from "@/app/actions/buzzer-actions";
 import { TEAM_LABELS } from "@/lib/constants";
+import { BUZZER_WORDS_PER_TURN_OPTIONS } from "@/types";
 import type { GameMode, Player, Team } from "@/types";
 
 interface TeamSetupScreenProps {
@@ -19,6 +20,7 @@ interface TeamSetupScreenProps {
   isHost: boolean;
   players: Player[];
   gameMode: GameMode;
+  buzzerWordsPerTurn: number;
 }
 
 export function TeamSetupScreen({
@@ -27,6 +29,7 @@ export function TeamSetupScreen({
   isHost,
   players,
   gameMode,
+  buzzerWordsPerTurn,
 }: TeamSetupScreenProps) {
   const [teamPickerMode, setTeamPickerMode] = useState<"choice" | "manual">("choice");
   const [isPending, startTransition] = useTransition();
@@ -34,6 +37,7 @@ export function TeamSetupScreen({
 
   const teamsAssigned = players.length > 0 && players.every((p) => p.team !== null);
   const isBuzzer = gameMode === "buzzer";
+  const totalWordsNeeded = buzzerWordsPerTurn * Math.max(players.length, 1);
 
   function handleAuto() {
     setError(undefined);
@@ -47,6 +51,14 @@ export function TeamSetupScreen({
     setError(undefined);
     startTransition(async () => {
       const result = await setGameMode(gameId, hostPlayerId, nextMode);
+      if (!result.success) setError(result.error);
+    });
+  }
+
+  function handleChangeWordsPerTurn(count: number) {
+    setError(undefined);
+    startTransition(async () => {
+      const result = await setBuzzerWordsPerTurn(gameId, hostPlayerId, count);
       if (!result.success) setError(result.error);
     });
   }
@@ -84,9 +96,36 @@ export function TeamSetupScreen({
 
       {isBuzzer ? (
         <>
-          <Card className="text-sm text-ink/60">
-            Pas d&apos;équipes en mode Buzzer : chacun joue pour soi. Chaque joueur fait
-            deviner à son tour (15 mots), les autres buzzent pour répondre.
+          <Card className="flex flex-col gap-3">
+            <p className="text-sm text-ink/60">
+              Pas d&apos;équipes en mode Buzzer : chacun joue pour soi. Chaque joueur fait
+              deviner à son tour, les autres buzzent pour répondre.
+            </p>
+            <div>
+              <p className="mb-1.5 text-sm font-medium text-ink/70">Mots par joueur</p>
+              <div className="flex gap-1.5">
+                {BUZZER_WORDS_PER_TURN_OPTIONS.map((option) => (
+                  <button
+                    key={option}
+                    onClick={() => handleChangeWordsPerTurn(option)}
+                    disabled={isPending}
+                    className={`h-9 w-9 rounded-full text-sm font-medium ${
+                      buzzerWordsPerTurn === option
+                        ? "bg-yellow-vivid text-ink"
+                        : "bg-ink/5 text-ink/50"
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-ink/40">
+                Chaque joueur reçoit un lot différent (jamais les mêmes mots qu'un autre
+                joueur). Avec {players.length} joueur{players.length > 1 ? "s" : ""}, prévois
+                au moins <span className="font-semibold text-ink/60">{totalWordsNeeded} mots</span>{" "}
+                au total dans la liste.
+              </p>
+            </div>
           </Card>
           <Button variant="yellow" onClick={handleStart} disabled={isPending}>
             Commencer la partie
@@ -174,8 +213,8 @@ function GameModePicker({
         >
           <p className="font-display font-semibold">Buzzer</p>
           <p className="text-xs opacity-80">
-            Un joueur fait deviner, les autres buzzent — premier arrivé, premier servi. 15
-            mots par tour, chacun pour soi.
+            Un joueur fait deviner, les autres buzzent — premier arrivé, premier servi.
+            Chacun pour soi.
           </p>
         </button>
       </div>
