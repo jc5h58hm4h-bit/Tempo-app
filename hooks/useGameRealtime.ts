@@ -87,6 +87,41 @@ export function useGameRealtime(
   const [words, setWords] = useState<Word[]>(initialWords);
   const [rounds, setRounds] = useState<Round[]>(initialRounds);
 
+  // Sur mobile, un onglet mis en arrière-plan (écran verrouillé, changement
+  // d'appli) peut voir sa connexion Realtime se couper sans reconnexion
+  // automatique fiable. Dès que l'appli redevient visible, on va chercher
+  // l'état actuel en base par une requête classique, pour rattraper tout
+  // événement manqué pendant la coupure.
+  useEffect(() => {
+    async function resync() {
+      const supabase = getSupabaseBrowserClient();
+      const [{ data: gameRow }, { data: playerRows }, { data: wordRows }, { data: roundRows }] =
+        await Promise.all([
+          supabase.from("games").select("*").eq("id", gameId).maybeSingle(),
+          supabase.from("players").select("*").eq("game_id", gameId).order("joined_at"),
+          supabase.from("words").select("*").eq("game_id", gameId).eq("is_active", true),
+          supabase.from("rounds").select("*").eq("game_id", gameId).order("round_number"),
+        ]);
+      if (gameRow) setGame(mapGame(gameRow));
+      if (playerRows) setPlayers(playerRows.map(mapPlayer));
+      if (wordRows) setWords(wordRows.map(mapWord));
+      if (roundRows) setRounds(roundRows.map(mapRound));
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        void resync();
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleVisibilityChange);
+    };
+  }, [gameId]);
+
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     const channel = supabase
