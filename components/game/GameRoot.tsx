@@ -57,6 +57,7 @@ export function GameRoot({
   );
   const [summaryWords, setSummaryWords] = useState<string[]>([]);
   const [buzzerWordQueue, setBuzzerWordQueue] = useState<WordQueueItem[] | null>(null);
+  const [readyError, setReadyError] = useState<string | undefined>();
 
   const currentPlayer = players.find((p) => p.id === currentPlayerId);
   const isHost = game.hostPlayerId === currentPlayerId;
@@ -91,10 +92,14 @@ export function GameRoot({
 
   async function handleReady() {
     if (!currentRound) return;
+    setReadyError(undefined);
 
     if (isBuzzerMode) {
       const result = await startBuzzerTurn(game.id, currentRound.id, currentPlayerId);
-      if (!result.success) return;
+      if (!result.success) {
+        setReadyError(result.error);
+        return;
+      }
       setBuzzerWordQueue(result.data.wordQueue);
       setTurnPhase("playing");
       return;
@@ -102,7 +107,10 @@ export function GameRoot({
 
     if (!currentPlayer?.team) return;
     const result = await startTurn(game.id, currentRound.id, currentPlayerId, currentPlayer.team);
-    if (!result.success) return;
+    if (!result.success) {
+      setReadyError(result.error);
+      return;
+    }
     setTurnData({ turnId: result.data.turnId, queue: result.data.wordQueue });
     setTurnPhase("playing");
   }
@@ -227,6 +235,7 @@ export function GameRoot({
             playerNickname={currentPlayer?.nickname ?? ""}
             team={null}
             onReady={handleReady}
+            error={readyError}
           />
         );
       }
@@ -269,6 +278,7 @@ export function GameRoot({
             playerNickname={currentPlayer.nickname}
             team={currentPlayer.team}
             onReady={handleReady}
+            error={readyError}
           />
         );
       }
