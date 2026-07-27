@@ -102,7 +102,7 @@ export function WaitingRoom({
             onClick={handleToggleReady}
             disabled={isReadyPending}
           >
-            {currentPlayer.isReady ? "Annuler (pas prêt)" : "Je suis prêt"}
+            {currentPlayer.isReady ? "Annuler (pas prêt·e)" : "Je suis prêt(e)"}
           </Button>
         )}
 
