@@ -15,7 +15,7 @@ import { PlayerManagementDrawer } from "@/components/game/PlayerManagementDrawer
 import { BuzzerDescriberScreen } from "@/components/game/BuzzerDescriberScreen";
 import { BuzzerGuesserScreen } from "@/components/game/BuzzerGuesserScreen";
 import { startTurn, recordGuessedWord, endTurn, startNextRound } from "@/app/actions/round-actions";
-import { startBuzzerTurn, pressBuzzer, resolveBuzz } from "@/app/actions/buzzer-actions";
+import { startBuzzerTurn, pressBuzzer, resolveBuzz, skipBuzzerWord } from "@/app/actions/buzzer-actions";
 import { markPlayerConnected } from "@/app/actions/game-actions";
 import { CHRONO_MAX_PASSES } from "@/types";
 import type { Game, Player, Round, Word } from "@/types";
@@ -156,6 +156,11 @@ export function GameRoot({
     await resolveBuzz(game.id, currentRound.id, currentPlayerId, game.buzzerPlayerId, correct);
   }
 
+  async function handleSkipBuzzerWord() {
+    if (!currentRound) return;
+    await skipBuzzerWord(game.id, currentRound.id, currentPlayerId);
+  }
+
   // --- Rendu ---------------------------------------------------------
 
   function renderContent() {
@@ -227,6 +232,7 @@ export function GameRoot({
               totalWords={buzzerWordQueue.length}
               buzzerNickname={buzzerNickname}
               onResolve={handleResolveBuzz}
+              onSkip={handleSkipBuzzerWord}
             />
           );
         }
