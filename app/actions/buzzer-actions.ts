@@ -36,10 +36,9 @@ function mapPlayer(row: any): Player {
 
 /**
  * À la fin d'une partie Buzzer, cumule le score total de chaque joueur
- * (points gagnés comme "je fais deviner" + points gagnés comme "je devine")
- * dans player_stats, par pseudo, année et mode. Contrairement aux modes
- * classique/chrono, aucune correction d'attribution n'est nécessaire ici :
- * le score du joueur reflète déjà directement ses deux rôles.
+ * (points gagnés comme "je fais deviner" + points gagnés comme "je devine",
+ * moins les points perdus sur une mauvaise réponse ou un mot passé) dans
+ * player_stats, par pseudo, année et mode.
  */
 async function recordBuzzerAnnualStats(
   supabase: ReturnType<typeof getSupabaseServerClient>,
@@ -84,6 +83,123 @@ async function recordBuzzerAnnualStats(
       }
     })
   );
+}
+
+interface WordQueueEntry {
+  id: string;
+  content: string;
+}
+
+interface AdvanceResult {
+  turnFinished: boolean;
+  gameFinished: boolean;
+}
+
+/**
+ * Fait avancer la pile de mots d'un tour Buzzer après un mot résolu (juste,
+ * faux, ou passé) : soit passe au mot suivant du même joueur, soit termine
+ * son tour et passe au joueur suivant qui n'a pas encore fait deviner, soit
+ * termine la partie si tout le monde est déjà passé. Partagé entre
+ * resolveBuzz et skipBuzzerWord pour ne pas dupliquer cette logique.
+ */
+async function advanceBuzzerQueueOrFinishTurn(
+  supabase: ReturnType<typeof getSupabaseServerClient>,
+  gameId: string,
+  roundId: string,
+  turnId: string,
+  wordQueue: WordQueueEntry[],
+  nextPosition: number
+): Promise<AdvanceResult> {
+  await supabase.from("turns").update({ queue_position: nextPosition }).eq("id", turnId);
+
+  const turnFinished = nextPosition >= wordQueue.length;
+
+  if (!turnFinished) {
+    const nextWord = wordQueue[nextPosition];
+    await supabase
+      .from("games")
+      .update({ buzzer_current_word_id: nextWord?.id ?? null, buzzer_player_id: null })
+      .eq("id", gameId);
+
+    return { turnFinished: false, gameFinished: false };
+  }
+
+  // Tour terminé : au joueur suivant qui n'a pas encore fait deviner,
+  // ou fin de la partie si tout le monde est déjà passé.
+  await supabase
+    .from("turns")
+    .update({ ended_at: new Date().toISOString() })
+    .eq("id", turnId);
+
+  const [{ data: playerRows }, { data: turnRows }] = await Promise.all([
+    supabase.from("players").select("*").eq("game_id", gameId).order("joined_at"),
+    supabase.from("turns").select("player_id").eq("round_id", roundId),
+  ]);
+  const players = (playerRows ?? []).map(mapPlayer);
+  const playedPlayerIds = new Set((turnRows ?? []).map((t) => t.player_id as string));
+
+  const next = nextUnplayedPlayerInOrder(players, playedPlayerIds);
+
+  if (!next) {
+    await supabase
+      .from("rounds")
+      .update({ status: "finished", ended_at: new Date().toISOString() })
+      .eq("id", roundId);
+    await supabase
+      .from("games")
+      .update({
+        status: "finished",
+        current_player_id: null,
+        buzzer_current_word_id: null,
+        buzzer_player_id: null,
+      })
+      .eq("id", gameId);
+    await recordBuzzerAnnualStats(supabase, gameId);
+
+    return { turnFinished: true, gameFinished: true };
+  }
+
+  await supabase
+    .from("games")
+    .update({
+      current_player_id: next.id,
+      buzzer_current_word_id: null,
+      buzzer_player_id: null,
+    })
+    .eq("id", gameId);
+
+  return { turnFinished: true, gameFinished: false };
+}
+
+/**
+ * Retrouve le tour actif d'un joueur qui fait deviner (pas encore terminé),
+ * et le mot en cours dans sa pile. Partagé entre resolveBuzz et
+ * skipBuzzerWord.
+ */
+async function findActiveTurnAndCurrentWord(
+  supabase: ReturnType<typeof getSupabaseServerClient>,
+  roundId: string,
+  describerId: string
+): Promise
+  | { turnId: string; wordQueue: WordQueueEntry[]; queuePosition: number; currentWord: WordQueueEntry }
+  | null
+> {
+  const { data: turn } = await supabase
+    .from("turns")
+    .select("id, word_queue, queue_position")
+    .eq("round_id", roundId)
+    .eq("player_id", describerId)
+    .is("ended_at", null)
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!turn) return null;
+
+  const wordQueue = (turn.word_queue ?? []) as WordQueueEntry[];
+  const currentWord = wordQueue[turn.queue_position];
+  if (!currentWord) return null;
+
+  return { turnId: turn.id, wordQueue, queuePosition: turn.queue_position, currentWord };
 }
 
 /**
@@ -182,7 +298,7 @@ export async function startBuzzerGame(
 
 interface StartBuzzerTurnResult {
   turnId: string;
-  wordQueue: { id: string; content: string }[];
+  wordQueue: WordQueueEntry[];
 }
 
 /** Démarre le tour d'un joueur qui fait deviner : sélectionne les mots de son lot. */
@@ -296,25 +412,11 @@ export async function resolveBuzz(
 ): Promise<ActionResult<ResolveBuzzResult>> {
   const supabase = getSupabaseServerClient();
 
-  const { data: turn } = await supabase
-    .from("turns")
-    .select("id, word_queue, queue_position")
-    .eq("round_id", roundId)
-    .eq("player_id", describerId)
-    .is("ended_at", null)
-    .order("started_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (!turn) {
-    return { success: false, error: "Tour introuvable." };
+  const active = await findActiveTurnAndCurrentWord(supabase, roundId, describerId);
+  if (!active) {
+    return { success: false, error: "Tour ou mot introuvable." };
   }
-  const turnId = turn.id;
-
-  const wordQueue = (turn.word_queue ?? []) as { id: string; content: string }[];
-  const currentWord = wordQueue[turn.queue_position];
-  if (!currentWord) {
-    return { success: false, error: "Aucun mot en cours." };
-  }
+  const { turnId, wordQueue, queuePosition, currentWord } = active;
 
   await supabase.from("words").update({ is_active: false }).eq("id", currentWord.id);
 
@@ -355,64 +457,57 @@ export async function resolveBuzz(
       .eq("id", buzzerId);
   }
 
-  const nextPosition = turn.queue_position + 1;
-  await supabase.from("turns").update({ queue_position: nextPosition }).eq("id", turnId);
+  const result = await advanceBuzzerQueueOrFinishTurn(
+    supabase,
+    gameId,
+    roundId,
+    turnId,
+    wordQueue,
+    queuePosition + 1
+  );
 
-  const turnFinished = nextPosition >= wordQueue.length;
+  return { success: true, data: result };
+}
 
-  if (!turnFinished) {
-    const nextWord = wordQueue[nextPosition];
-    await supabase
-      .from("games")
-      .update({ buzzer_current_word_id: nextWord?.id ?? null, buzzer_player_id: null })
-      .eq("id", gameId);
+/**
+ * Celui qui fait deviner passe le mot en cours (trop difficile à faire
+ * deviner) : il perd 1 point, et le mot est perdu (retiré de la pile pour
+ * le reste de la partie), exactement comme une mauvaise réponse au buzzer.
+ * Utilisable uniquement quand personne n'a encore buzzé sur ce mot.
+ */
+export async function skipBuzzerWord(
+  gameId: string,
+  roundId: string,
+  describerId: string
+): Promise<ActionResult<ResolveBuzzResult>> {
+  const supabase = getSupabaseServerClient();
 
-    return { success: true, data: { turnFinished: false, gameFinished: false } };
+  const active = await findActiveTurnAndCurrentWord(supabase, roundId, describerId);
+  if (!active) {
+    return { success: false, error: "Tour ou mot introuvable." };
   }
+  const { turnId, wordQueue, queuePosition, currentWord } = active;
 
-  // Tour terminé : au joueur suivant qui n'a pas encore fait deviner,
-  // ou fin de la partie si tout le monde est déjà passé.
+  await supabase.from("words").update({ is_active: false }).eq("id", currentWord.id);
+
+  const { data: describer } = await supabase
+    .from("players")
+    .select("score")
+    .eq("id", describerId)
+    .maybeSingle();
   await supabase
-    .from("turns")
-    .update({ ended_at: new Date().toISOString() })
-    .eq("id", turnId);
+    .from("players")
+    .update({ score: (describer?.score ?? 0) - 1 })
+    .eq("id", describerId);
 
-  const [{ data: playerRows }, { data: turnRows }] = await Promise.all([
-    supabase.from("players").select("*").eq("game_id", gameId).order("joined_at"),
-    supabase.from("turns").select("player_id").eq("round_id", roundId),
-  ]);
-  const players = (playerRows ?? []).map(mapPlayer);
-  const playedPlayerIds = new Set((turnRows ?? []).map((t) => t.player_id as string));
+  const result = await advanceBuzzerQueueOrFinishTurn(
+    supabase,
+    gameId,
+    roundId,
+    turnId,
+    wordQueue,
+    queuePosition + 1
+  );
 
-  const next = nextUnplayedPlayerInOrder(players, playedPlayerIds);
-
-  if (!next) {
-    await supabase
-      .from("rounds")
-      .update({ status: "finished", ended_at: new Date().toISOString() })
-      .eq("id", roundId);
-    await supabase
-      .from("games")
-      .update({
-        status: "finished",
-        current_player_id: null,
-        buzzer_current_word_id: null,
-        buzzer_player_id: null,
-      })
-      .eq("id", gameId);
-    await recordBuzzerAnnualStats(supabase, gameId);
-
-    return { success: true, data: { turnFinished: true, gameFinished: true } };
-  }
-
-  await supabase
-    .from("games")
-    .update({
-      current_player_id: next.id,
-      buzzer_current_word_id: null,
-      buzzer_player_id: null,
-    })
-    .eq("id", gameId);
-
-  return { success: true, data: { turnFinished: true, gameFinished: false } };
+  return { success: true, data: result };
 }
