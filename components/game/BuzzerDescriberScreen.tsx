@@ -10,18 +10,26 @@ export function BuzzerDescriberScreen({
   totalWords,
   buzzerNickname,
   onResolve,
+  onSkip,
 }: {
   word: string;
   wordsRemaining: number;
   totalWords: number;
   buzzerNickname: string | null;
   onResolve: (correct: boolean) => void;
+  onSkip: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
 
   function handleResolve(correct: boolean) {
     startTransition(() => {
       onResolve(correct);
+    });
+  }
+
+  function handleSkip() {
+    startTransition(() => {
+      onSkip();
     });
   }
 
@@ -54,9 +62,14 @@ export function BuzzerDescriberScreen({
           </Button>
         </div>
       ) : (
-        <Card tone="cream" className="text-center">
-          <p className="text-ink/60">En attente d&apos;un buzz...</p>
-        </Card>
+        <div className="flex flex-col gap-3">
+          <Card tone="cream" className="text-center">
+            <p className="text-ink/60">En attente d&apos;un buzz...</p>
+          </Card>
+          <Button variant="ghost" onClick={handleSkip} disabled={isPending}>
+            Passer ce mot (-1 pour toi)
+          </Button>
+        </div>
       )}
     </div>
   );
