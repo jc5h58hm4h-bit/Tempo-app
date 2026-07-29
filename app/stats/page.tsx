@@ -12,6 +12,12 @@ interface StatRow {
   gamesPlayed: number;
 }
 
+const MODE_LABELS: Record<GameMode, string> = {
+  classic: "Mode Classique",
+  chrono: "Mode Chrono",
+  buzzer: "Mode Buzzer",
+};
+
 async function fetchLeaderboard(
   supabase: ReturnType<typeof getSupabaseServerClient>,
   year: number,
@@ -31,24 +37,56 @@ async function fetchLeaderboard(
   }));
 }
 
+/** Classement toutes catégories confondues : cumule les 3 modes par pseudo. */
+async function fetchGlobalLeaderboard(
+  supabase: ReturnType<typeof getSupabaseServerClient>,
+  year: number
+): Promise<StatRow[]> {
+  const { data } = await supabase
+    .from("player_stats")
+    .select("nickname, words_guessed, games_played")
+    .eq("year", year);
+
+  const byNickname = new Map<string, StatRow>();
+  for (const row of data ?? []) {
+    const existing = byNickname.get(row.nickname);
+    if (existing) {
+      existing.wordsGuessed += row.words_guessed;
+      existing.gamesPlayed += row.games_played;
+    } else {
+      byNickname.set(row.nickname, {
+        nickname: row.nickname,
+        wordsGuessed: row.words_guessed,
+        gamesPlayed: row.games_played,
+      });
+    }
+  }
+
+  return [...byNickname.values()].sort((a, b) => b.wordsGuessed - a.wordsGuessed);
+}
+
 export default async function StatsPage() {
   const supabase = getSupabaseServerClient();
   const year = new Date().getFullYear();
 
-  const [classicRows, chronoRows] = await Promise.all([
+  const [globalRows, classicRows, chronoRows, buzzerRows] = await Promise.all([
+    fetchGlobalLeaderboard(supabase, year),
     fetchLeaderboard(supabase, year, "classic"),
     fetchLeaderboard(supabase, year, "chrono"),
+    fetchLeaderboard(supabase, year, "buzzer"),
   ]);
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-4 px-6 py-10 animate-pop-in">
       <div className="text-center">
         <h1 className="font-display text-2xl font-semibold">Classement {year}</h1>
-        <p className="mt-1 text-sm text-ink/60">Mots devinés cumulés sur l&apos;année</p>
+        <p className="mt-1 text-sm text-ink/60">Points cumulés sur l&apos;année</p>
       </div>
 
-      <Leaderboard title="Mode Classique" rows={classicRows} />
-      <Leaderboard title="Mode Chrono" rows={chronoRows} />
+      <Leaderboard title="🏆 Classement général (tous modes)" rows={globalRows} highlight />
+      <Leaderboard title={MODE_LABELS.classic} rows={classicRows} />
+      <Leaderboard title={MODE_LABELS.chrono} rows={chronoRows} />
+      <Leaderboard title={MODE_LABELS.buzzer} rows={buzzerRows} />
 
       <Link href="/">
         <Button variant="ghost">Retour à l&apos;accueil</Button>
@@ -57,9 +95,17 @@ export default async function StatsPage() {
   );
 }
 
-function Leaderboard({ title, rows }: { title: string; rows: StatRow[] }) {
+function Leaderboard({
+  title,
+  rows,
+  highlight = false,
+}: {
+  title: string;
+  rows: StatRow[];
+  highlight?: boolean;
+}) {
   return (
-    <Card className="flex flex-col gap-2">
+    <Card className={`flex flex-col gap-2 ${highlight ? "border-2 border-yellow-vivid" : ""}`}>
       <p className="text-sm font-semibold text-ink/70">{title}</p>
       {rows.length === 0 && (
         <p className="py-4 text-center text-sm text-ink/40">
