@@ -73,71 +73,6 @@ export async function addWord(
   return { success: true, data: word };
 }
 
-interface ImportWordsResult {
-  added: number;
-  skippedDuplicates: number;
-  skippedInvalid: number;
-}
-
-/** Importe plusieurs mots collés en une seule fois (un mot par ligne). */
-export async function addWordsBulk(
-  gameId: string,
-  playerId: string,
-  rawText: string
-): Promise<ActionResult<ImportWordsResult>> {
-  const supabase = getSupabaseServerClient();
-
-  if (!(await assertIsHost(supabase, gameId, playerId))) {
-    return { success: false, error: "Seul l'hôte peut gérer la liste de mots." };
-  }
-
-  const { data: existingWords } = await supabase
-    .from("words")
-    .select("content")
-    .eq("game_id", gameId);
-
-  const existingLower = new Set(
-    (existingWords ?? []).map((w) => w.content.toLowerCase())
-  );
-
-  const lines = rawText.split("\n").map(cleanWord);
-
-  let skippedInvalid = 0;
-  let skippedDuplicates = 0;
-  const toInsert: { game_id: string; content: string; is_active: true }[] = [];
-  const seenInBatch = new Set<string>();
-
-  for (const line of lines) {
-    if (!isWordValid(line)) {
-      if (line.length > 0) skippedInvalid++;
-      continue;
-    }
-    const key = line.toLowerCase();
-    if (existingLower.has(key) || seenInBatch.has(key)) {
-      skippedDuplicates++;
-      continue;
-    }
-    seenInBatch.add(key);
-    toInsert.push({ game_id: gameId, content: line, is_active: true });
-  }
-
-  if (toInsert.length > 0) {
-    const { error } = await supabase.from("words").insert(toInsert);
-    if (error) {
-      return { success: false, error: "Impossible d'importer les mots." };
-    }
-  }
-
-  return {
-    success: true,
-    data: {
-      added: toInsert.length,
-      skippedDuplicates,
-      skippedInvalid,
-    },
-  };
-}
-
 /** Supprime un mot de la liste. */
 export async function removeWord(
   gameId: string,
@@ -160,19 +95,4 @@ export async function removeWord(
     return { success: false, error: "Impossible de supprimer ce mot." };
   }
   return { success: true, data: null };
-}
-
-/**
- * Point d'entrée prévu pour l'import de fichier .txt / .csv.
- * Non branché à une interface dans cette version : l'architecture est prête
- * (mêmes règles de validation que addWordsBulk) pour qu'un futur composant
- * d'upload de fichier n'ait qu'à lire le fichier en texte et appeler
- * addWordsBulk avec son contenu.
- */
-export async function addWordsFromFileContent(
-  gameId: string,
-  playerId: string,
-  fileText: string
-): Promise<ActionResult<ImportWordsResult>> {
-  return addWordsBulk(gameId, playerId, fileText);
 }
