@@ -83,19 +83,8 @@ export function WaitingRoom({
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-4 px-6 py-8">
       <CodeDisplay code={game.code} />
-      <PlayerList
-        players={players}
-        onlinePlayerIds={onlinePlayerIds}
-        hostRemoveProps={isHost ? { gameId: game.id, hostPlayerId: currentPlayerId } : undefined}
-      />
-      <WordManager
-        gameId={game.id}
-        hostPlayerId={currentPlayerId}
-        isHost={isHost}
-        words={words}
-      />
 
-      <div className="sticky bottom-4 flex flex-col gap-2 pb-safe">
+      <div className="flex flex-col gap-2">
         {currentPlayer && (
           <Button
             variant={currentPlayer.isReady ? "secondary" : "primary"}
@@ -128,6 +117,18 @@ export function WaitingRoom({
           </>
         )}
       </div>
+
+      <PlayerList
+        players={players}
+        onlinePlayerIds={onlinePlayerIds}
+        hostRemoveProps={isHost ? { gameId: game.id, hostPlayerId: currentPlayerId } : undefined}
+      />
+      <WordManager
+        gameId={game.id}
+        hostPlayerId={currentPlayerId}
+        isHost={isHost}
+        words={words}
+      />
     </div>
   );
 }
