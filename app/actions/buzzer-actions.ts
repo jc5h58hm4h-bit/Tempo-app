@@ -171,6 +171,13 @@ async function advanceBuzzerQueueOrFinishTurn(
   return { turnFinished: true, gameFinished: false };
 }
 
+interface ActiveTurnInfo {
+  turnId: string;
+  wordQueue: WordQueueEntry[];
+  queuePosition: number;
+  currentWord: WordQueueEntry;
+}
+
 /**
  * Retrouve le tour actif d'un joueur qui fait deviner (pas encore terminé),
  * et le mot en cours dans sa pile. Partagé entre resolveBuzz et
@@ -180,10 +187,7 @@ async function findActiveTurnAndCurrentWord(
   supabase: ReturnType<typeof getSupabaseServerClient>,
   roundId: string,
   describerId: string
-): Promise
-  | { turnId: string; wordQueue: WordQueueEntry[]; queuePosition: number; currentWord: WordQueueEntry }
-  | null
-> {
+): Promise<ActiveTurnInfo | null> {
   const { data: turn } = await supabase
     .from("turns")
     .select("id, word_queue, queue_position")
