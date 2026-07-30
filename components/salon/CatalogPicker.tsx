@@ -77,14 +77,26 @@ export function CatalogPicker({
 
   return (
     <div className="flex flex-col gap-3 border-t border-ink/10 pt-4">
-      <div>
-        <label className="text-sm font-medium text-ink/70">
-          Catalogue partagé
-        </label>
-        <p className="text-xs text-ink/40">
-          Un mot pioché ici ne revient pas avant {CATALOG_REPEAT_EXCLUSION_GAMES}{" "}
-          parties.
-        </p>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <label className="text-sm font-medium text-ink/70">
+            Catalogue partagé
+          </label>
+          <p className="text-xs text-ink/40">
+            Un mot pioché ici ne revient pas avant {CATALOG_REPEAT_EXCLUSION_GAMES}{" "}
+            parties.
+          </p>
+        </div>
+        <button
+          onClick={toggleAllCategories}
+          className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium ${
+            selectedCategories.length === CATALOG_CATEGORIES.length
+              ? "bg-blue-deep text-cream"
+              : "bg-ink/10 text-ink/70"
+          }`}
+        >
+          Tous
+        </button>
       </div>
 
       <div>
@@ -92,16 +104,6 @@ export function CatalogPicker({
           Catégories
         </p>
         <div className="flex flex-wrap gap-2">
-          <button
-            onClick={toggleAllCategories}
-            className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-              selectedCategories.length === CATALOG_CATEGORIES.length
-                ? "bg-blue-deep text-cream"
-                : "bg-ink/10 text-ink/70"
-            }`}
-          >
-            Tous
-          </button>
           {CATALOG_CATEGORIES.map((category) => {
             const isSelected = selectedCategories.includes(category);
             return (
