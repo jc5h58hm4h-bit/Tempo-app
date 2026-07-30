@@ -10,7 +10,8 @@ export type CatalogCategory =
   | "personnages_historiques"
   | "personnages_fictifs"
   | "oeuvres_artistiques"
-  | "celebrites";
+  | "celebrites"
+  | "capitales_du_monde";
 
 export const CATALOG_CATEGORIES: CatalogCategory[] = [
   "marques",
@@ -25,6 +26,7 @@ export const CATALOG_CATEGORIES: CatalogCategory[] = [
   "personnages_fictifs",
   "oeuvres_artistiques",
   "celebrites",
+  "capitales_du_monde",
 ];
 
 export const CATALOG_CATEGORY_LABELS: Record<CatalogCategory, string> = {
@@ -40,6 +42,7 @@ export const CATALOG_CATEGORY_LABELS: Record<CatalogCategory, string> = {
   personnages_fictifs: "Personnages fictifs",
   oeuvres_artistiques: "Œuvres artistiques",
   celebrites: "Célébrités",
+  capitales_du_monde: "Capitales du monde",
 };
 
 export type CatalogDifficulty = "facile" | "moyen" | "difficile";
