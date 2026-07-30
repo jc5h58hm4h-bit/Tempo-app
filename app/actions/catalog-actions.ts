@@ -87,16 +87,25 @@ export async function pickWordsFromCatalog(
     return { success: false, error: "Impossible de charger le catalogue." };
   }
 
-  // 3. Exclut les mots déjà présents dans la liste de la partie en cours.
+  // 3. Exclut les mots déjà présents dans la liste de la partie en cours,
+  // ET les doublons entre catégories différentes (ex: un mot présent dans
+  // deux catégories à la fois) pour ne jamais piocher deux fois le même mot
+  // dans une seule partie.
   const { data: existingWords } = await supabase
     .from("words")
     .select("content")
     .eq("game_id", gameId);
   const existingContents = (existingWords ?? []).map((w) => w.content);
 
-  const pool = (catalogWords ?? []).filter(
-    (w) => !isDuplicateWord(existingContents, w.content)
-  );
+  const seenContent = new Set<string>();
+  const deduped = (catalogWords ?? []).filter((w) => {
+    const key = w.content.trim().toLowerCase();
+    if (seenContent.has(key)) return false;
+    seenContent.add(key);
+    return true;
+  });
+
+  const pool = deduped.filter((w) => !isDuplicateWord(existingContents, w.content));
   const freshPool = pool.filter((w) => !excludedWordIds.has(w.id));
   const olderPool = pool.filter((w) => excludedWordIds.has(w.id));
 
