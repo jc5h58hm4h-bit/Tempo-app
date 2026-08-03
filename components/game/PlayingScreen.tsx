@@ -9,6 +9,8 @@ import type { GameMode, RoundNumber, Team } from "@/types";
 interface WordQueueItem {
   id: string;
   content: string;
+  /** Indice de sens écrit à l'avance (catalogue uniquement). null si absent. */
+  hint?: string | null;
 }
 
 interface PlayingScreenProps {
@@ -26,14 +28,6 @@ interface PlayingScreenProps {
   onWordFound: (word: WordQueueItem) => Promise<{ success: boolean; roundComplete: boolean }>;
   onTurnEnd: (foundWords: WordQueueItem[], roundComplete: boolean) => void;
   onUseHint?: () => Promise<{ success: boolean }>;
-}
-
-/** Indice auto : 1ère lettre + nombre de lettres (espaces exclus). */
-function computeHint(content: string): string {
-  const lettersOnly = content.replace(/\s/g, "");
-  const count = lettersOnly.length;
-  const firstLetter = content.charAt(0).toUpperCase();
-  return `Commence par "${firstLetter}" · ${count} lettre${count > 1 ? "s" : ""}`;
 }
 
 export function PlayingScreen({
@@ -66,7 +60,12 @@ export function PlayingScreen({
 
   const currentWord = queue[0];
   const passLimitReached = maxPasses !== undefined && passesUsed >= maxPasses;
-  const canShowHintButton = mode === "classic" && !!onUseHint && !hintUsed && !revealedHint;
+  // L'indice n'existe que pour les mots piochés dans le catalogue (écrit à
+  // l'avance) : les mots ajoutés à la main par l'hôte n'ont pas de hint, et
+  // dans ce cas aucun bouton n'est affiché du tout.
+  const currentHint = currentWord?.hint ?? null;
+  const canShowHintButton =
+    mode === "classic" && !!onUseHint && !hintUsed && !revealedHint && !!currentHint;
 
   // Un indice révélé ne vaut que pour le mot affiché au moment où on l'a
   // demandé : dès que le mot change (trouvé, passé...), on le masque.
@@ -119,12 +118,12 @@ export function PlayingScreen({
   }
 
   async function handleUseHint() {
-    if (!currentWord || !onUseHint || hintUsed || isHintPending) return;
+    if (!currentWord || !currentHint || !onUseHint || hintUsed || isHintPending) return;
     setIsHintPending(true);
     try {
       const result = await onUseHint();
       if (result.success) {
-        setRevealedHint(computeHint(currentWord.content));
+        setRevealedHint(currentHint);
       }
     } finally {
       setIsHintPending(false);
@@ -153,7 +152,7 @@ export function PlayingScreen({
         </p>
       )}
 
-      {mode === "classic" && !!onUseHint && (
+      {mode === "classic" && !!onUseHint && currentHint && (
         <div className="flex flex-col items-center gap-1">
           {revealedHint ? (
             <p className="rounded-full bg-yellow-pale px-4 py-1.5 text-sm font-medium text-ink">
@@ -162,7 +161,7 @@ export function PlayingScreen({
           ) : canShowHintButton ? (
             <button
               onClick={handleUseHint}
-              disabled={isBlocked || !currentWord || isHintPending}
+              disabled={isBlocked || isHintPending}
               className="rounded-full bg-ink/5 px-4 py-1.5 text-sm font-medium text-ink/70 disabled:opacity-40"
             >
               💡 Utiliser mon indice (1 pour toute la partie)
