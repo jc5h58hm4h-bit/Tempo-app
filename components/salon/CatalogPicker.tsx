@@ -9,7 +9,6 @@ import {
   CATALOG_DIFFICULTIES,
   CATALOG_DIFFICULTY_LABELS,
   CATALOG_WORD_COUNT_OPTIONS,
-  CATALOG_REPEAT_EXCLUSION_GAMES,
   CHRONO_CATALOG_WORD_COUNT,
 } from "@/lib/catalog";
 import type { CatalogCategory, CatalogDifficulty } from "@/lib/catalog";
@@ -65,11 +64,11 @@ export function CatalogPicker({
         setFeedback(result.error);
         return;
       }
-      const { added, reusedOlderWords } = result.data;
+      const { added, startedNewCycle } = result.data;
       setFeedback(
         `${added} mot${added > 1 ? "s" : ""} pioché${added > 1 ? "s" : ""}` +
-          (reusedOlderWords > 0
-            ? ` (dont ${reusedOlderWords} déjà vu(s) récemment, faute de stock frais)`
+          (startedNewCycle > 0
+            ? ` (dont ${startedNewCycle} qui relance${startedNewCycle > 1 ? "nt" : ""} un nouveau cycle, tous les mots disponibles étant déjà sortis)`
             : "")
       );
     });
@@ -83,8 +82,8 @@ export function CatalogPicker({
             Catalogue partagé
           </label>
           <p className="text-xs text-ink/40">
-            Un mot pioché ici ne revient pas avant {CATALOG_REPEAT_EXCLUSION_GAMES}{" "}
-            parties.
+            Un mot ne revient que lorsque tous les mots de sa catégorie et de sa
+            difficulté sont sortis au moins une fois.
           </p>
         </div>
         <button
