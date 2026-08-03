@@ -33,6 +33,7 @@ function mapPlayer(row: any): Player {
     score: row.score,
     joinedAt: row.joined_at,
     isConnected: row.is_connected,
+    hintUsed: row.hint_used,
   };
 }
 
@@ -688,7 +689,10 @@ export async function replaySameWords(
     await supabase.from("rounds").delete().in("id", oldRoundIds);
   }
 
-  await supabase.from("players").update({ score: 0 }).eq("game_id", gameId);
+  await supabase
+    .from("players")
+    .update({ score: 0, hint_used: false })
+    .eq("game_id", gameId);
 
   const { data: playerRows } = await supabase
     .from("players")
@@ -776,7 +780,7 @@ export async function newGameSamePlayers(
 
   await supabase
     .from("players")
-    .update({ score: 0, is_ready: false, team: null })
+    .update({ score: 0, is_ready: false, team: null, hint_used: false })
     .eq("game_id", gameId);
 
   const { error } = await supabase
@@ -886,5 +890,44 @@ export async function removePlayer(
       .eq("id", gameId);
   }
 
+  return { success: true, data: null };
+}
+
+/**
+ * Consomme l'indice "ampoule" d'un joueur (mode classique uniquement,
+ * 1 fois par joueur pour toute la partie, les 2 manches confondues).
+ * Le contenu de l'indice (1ère lettre + nombre de lettres) est calculé
+ * côté client à partir du mot déjà connu de son navigateur — cette action
+ * sert uniquement à valider et enregistrer que l'indice a bien été utilisé,
+ * pour qu'il ne puisse pas être réutilisé plus tard dans la partie.
+ */
+export async function useHint(
+  gameId: string,
+  playerId: string
+): Promise<ActionResult<null>> {
+  const supabase = getSupabaseServerClient();
+
+  const { data: player } = await supabase
+    .from("players")
+    .select("hint_used")
+    .eq("id", playerId)
+    .eq("game_id", gameId)
+    .maybeSingle();
+
+  if (!player) {
+    return { success: false, error: "Joueur introuvable." };
+  }
+  if (player.hint_used) {
+    return { success: false, error: "Indice déjà utilisé." };
+  }
+
+  const { error } = await supabase
+    .from("players")
+    .update({ hint_used: true })
+    .eq("id", playerId);
+
+  if (error) {
+    return { success: false, error: "Impossible d'utiliser l'indice." };
+  }
   return { success: true, data: null };
 }
