@@ -3,7 +3,6 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { isDuplicateWord } from "@/lib/game-rules";
 import { shuffleArray } from "@/lib/utils";
-import { CATALOG_REPEAT_EXCLUSION_GAMES } from "@/lib/catalog";
 import type { ActionResult } from "@/lib/action-result";
 import type { CatalogCategory, CatalogDifficulty } from "@/lib/catalog";
 
@@ -22,16 +21,32 @@ async function assertIsHost(
 
 interface PickResult {
   added: number;
-  reusedOlderWords: number;
+  /** Nombre de mots qui ont dû relancer un nouveau cycle pour leur
+   * catégorie/difficulté (tous les autres mots de ce lot avaient déjà été
+   * piochés au moins une fois). */
+  startedNewCycle: number;
+}
+
+interface CatalogWordRow {
+  id: string;
+  content: string;
+  hint: string | null;
+  category: string;
+  difficulty: string;
+  used_in_cycle: boolean;
 }
 
 /**
  * Pioche des mots aléatoires dans le catalogue partagé, pour les catégories
- * ET les niveaux de difficulté choisis par l'hôte, en excluant en priorité
- * les mots déjà utilisés dans l'une des CATALOG_REPEAT_EXCLUSION_GAMES
- * dernières parties ayant pioché dans le catalogue. Si le nombre de mots
- * "frais" disponibles est insuffisant, complète avec les mots les plus
- * anciennement réutilisés plutôt que d'échouer.
+ * ET les niveaux de difficulté choisis par l'hôte.
+ *
+ * Règle anti-répétition : un mot ne peut ressortir qu'une fois que TOUS les
+ * mots de sa catégorie ET de sa difficulté ont déjà été piochés au moins une
+ * fois (used_in_cycle=true partout dans ce sous-groupe). Dès que c'est le
+ * cas, le cycle recommence pour ce sous-groupe précis : tous ses mots
+ * redeviennent disponibles, sauf ceux qu'on vient de piocher à l'instant qui
+ * restent marqués comme utilisés pour le nouveau cycle qui démarre. Chaque
+ * combinaison catégorie/difficulté a son propre cycle indépendant.
  */
 export async function pickWordsFromCatalog(
   gameId: string,
@@ -52,34 +67,11 @@ export async function pickWordsFromCatalog(
     return { success: false, error: "Choisis au moins un niveau de difficulté." };
   }
 
-  // 1. Détermine les mots à éviter : ceux utilisés dans l'une des N
-  // dernières parties ayant elles-mêmes pioché dans le catalogue.
-  const { data: recentUsage } = await supabase
-    .from("catalog_word_usage")
-    .select("word_id, game_id, used_at")
-    .order("used_at", { ascending: false })
-    .limit(3000);
-
-  const recentGameIds: string[] = [];
-  const seenGames = new Set<string>();
-  for (const row of recentUsage ?? []) {
-    if (!seenGames.has(row.game_id)) {
-      seenGames.add(row.game_id);
-      recentGameIds.push(row.game_id);
-    }
-    if (recentGameIds.length >= CATALOG_REPEAT_EXCLUSION_GAMES) break;
-  }
-  const recentGameIdSet = new Set(recentGameIds);
-  const excludedWordIds = new Set(
-    (recentUsage ?? [])
-      .filter((row) => recentGameIdSet.has(row.game_id))
-      .map((row) => row.word_id)
-  );
-
-  // 2. Récupère les mots du catalogue pour les catégories ET difficultés choisies.
+  // 1. Récupère les mots du catalogue pour les catégories ET difficultés
+  // choisies, avec leur statut de cycle actuel.
   const { data: catalogWords, error: catalogError } = await supabase
     .from("catalog_words")
-    .select("id, content, hint")
+    .select("id, content, hint, category, difficulty, used_in_cycle")
     .in("category", categories)
     .in("difficulty", difficulties);
 
@@ -87,7 +79,7 @@ export async function pickWordsFromCatalog(
     return { success: false, error: "Impossible de charger le catalogue." };
   }
 
-  // 3. Exclut les mots déjà présents dans la liste de la partie en cours,
+  // 2. Exclut les mots déjà présents dans la liste de la partie en cours,
   // ET les doublons entre catégories différentes (ex: un mot présent dans
   // deux catégories à la fois) pour ne jamais piocher deux fois le même mot
   // dans une seule partie.
@@ -98,7 +90,7 @@ export async function pickWordsFromCatalog(
   const existingContents = (existingWords ?? []).map((w) => w.content);
 
   const seenContent = new Set<string>();
-  const deduped = (catalogWords ?? []).filter((w) => {
+  const deduped = ((catalogWords ?? []) as CatalogWordRow[]).filter((w) => {
     const key = w.content.trim().toLowerCase();
     if (seenContent.has(key)) return false;
     seenContent.add(key);
@@ -106,15 +98,35 @@ export async function pickWordsFromCatalog(
   });
 
   const pool = deduped.filter((w) => !isDuplicateWord(existingContents, w.content));
-  const freshPool = pool.filter((w) => !excludedWordIds.has(w.id));
-  const olderPool = pool.filter((w) => excludedWordIds.has(w.id));
 
-  const selected = shuffleArray(freshPool).slice(0, count);
-  let reusedOlderWords = 0;
+  // 3. Sépare les mots pas encore utilisés dans le cycle en cours de leur
+  // sous-groupe (catégorie+difficulté) des mots déjà utilisés.
+  const notUsed = pool.filter((w) => !w.used_in_cycle);
+  const alreadyUsed = pool.filter((w) => w.used_in_cycle);
+
+  const selected: CatalogWordRow[] = shuffleArray(notUsed).slice(0, count);
+  let startedNewCycle = 0;
+
   if (selected.length < count) {
     const stillNeeded = count - selected.length;
-    const extra = shuffleArray(olderPool).slice(0, stillNeeded);
-    reusedOlderWords = extra.length;
+    const extra = shuffleArray(alreadyUsed).slice(0, stillNeeded);
+    startedNewCycle = extra.length;
+
+    // Relance le cycle pour chaque sous-groupe catégorie/difficulté
+    // représenté parmi les mots qu'on vient de reprendre : tous ses mots
+    // redeviennent disponibles pour la prochaine pioche.
+    const bucketsToReset = new Set(extra.map((w) => `${w.category}::${w.difficulty}`));
+    await Promise.all(
+      [...bucketsToReset].map((bucketKey) => {
+        const [category, difficulty] = bucketKey.split("::");
+        return supabase
+          .from("catalog_words")
+          .update({ used_in_cycle: false })
+          .eq("category", category)
+          .eq("difficulty", difficulty);
+      })
+    );
+
     selected.push(...extra);
   }
 
@@ -125,6 +137,7 @@ export async function pickWordsFromCatalog(
     };
   }
 
+  // 4. Ajoute les mots à la liste de la partie.
   const { error: insertWordsError } = await supabase.from("words").insert(
     selected.map((w) => ({
       game_id: gameId,
@@ -137,12 +150,16 @@ export async function pickWordsFromCatalog(
     return { success: false, error: "Impossible d'ajouter les mots du catalogue." };
   }
 
+  // 5. Marque les mots piochés comme utilisés pour le cycle en cours de
+  // leur sous-groupe (y compris ceux dont on vient de relancer le cycle
+  // juste au-dessus : ils redeviennent "utilisés" pour ce nouveau cycle).
   await supabase
-    .from("catalog_word_usage")
-    .insert(selected.map((w) => ({ word_id: w.id, game_id: gameId })));
+    .from("catalog_words")
+    .update({ used_in_cycle: true })
+    .in("id", selected.map((w) => w.id));
 
   return {
     success: true,
-    data: { added: selected.length, reusedOlderWords },
+    data: { added: selected.length, startedNewCycle },
   };
 }
