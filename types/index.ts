@@ -89,6 +89,8 @@ export interface Player {
   score: number;
   joinedAt: string;
   isConnected: boolean;
+  /** Mode classique uniquement : a-t-il déjà utilisé son indice (1 par partie) ? */
+  hintUsed: boolean;
 }
 
 export interface Word {
