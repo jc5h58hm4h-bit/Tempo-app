@@ -23,6 +23,7 @@ import type { Game, Player, Round, Word } from "@/types";
 interface WordQueueItem {
   id: string;
   content: string;
+  hint?: string | null;
 }
 
 type TurnPhase = "idle" | "transition" | "playing" | "turn_summary";
