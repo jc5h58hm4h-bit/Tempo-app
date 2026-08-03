@@ -55,9 +55,6 @@ export const CATALOG_DIFFICULTY_LABELS: Record<CatalogDifficulty, string> = {
   difficile: "Difficile",
 };
 
-/** Nombre de parties récentes pendant lesquelles un mot piochée ne doit pas ressortir. */
-export const CATALOG_REPEAT_EXCLUSION_GAMES = 20;
-
 export const CATALOG_WORD_COUNT_OPTIONS = [10, 20, 30, 40] as const;
 
 /** Raccourci "Chrono" : pioche directement un gros volume de mots en un coup. */
