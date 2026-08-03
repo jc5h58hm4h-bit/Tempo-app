@@ -10,6 +10,8 @@ interface StatRow {
   nickname: string;
   wordsGuessed: number;
   gamesPlayed: number;
+  /** Points par partie jouée, arrondi à 1 décimale : la vraie base du classement. */
+  average: number;
 }
 
 const MODE_LABELS: Record<GameMode, string> = {
@@ -17,6 +19,11 @@ const MODE_LABELS: Record<GameMode, string> = {
   chrono: "Mode Chrono",
   buzzer: "Mode Buzzer",
 };
+
+function computeAverage(wordsGuessed: number, gamesPlayed: number): number {
+  if (gamesPlayed === 0) return 0;
+  return Math.round((wordsGuessed / gamesPlayed) * 10) / 10;
+}
 
 async function fetchLeaderboard(
   supabase: ReturnType<typeof getSupabaseServerClient>,
@@ -27,14 +34,16 @@ async function fetchLeaderboard(
     .from("player_stats")
     .select("nickname, words_guessed, games_played")
     .eq("year", year)
-    .eq("mode", mode)
-    .order("words_guessed", { ascending: false });
+    .eq("mode", mode);
 
-  return (data ?? []).map((r) => ({
+  const rows: StatRow[] = (data ?? []).map((r) => ({
     nickname: r.nickname,
     wordsGuessed: r.words_guessed,
     gamesPlayed: r.games_played,
+    average: computeAverage(r.words_guessed, r.games_played),
   }));
+
+  return rows.sort((a, b) => b.average - a.average);
 }
 
 /** Classement toutes catégories confondues : cumule les 3 modes par pseudo. */
@@ -47,7 +56,7 @@ async function fetchGlobalLeaderboard(
     .select("nickname, words_guessed, games_played")
     .eq("year", year);
 
-  const byNickname = new Map<string, StatRow>();
+  const byNickname = new Map<string, { nickname: string; wordsGuessed: number; gamesPlayed: number }>();
   for (const row of data ?? []) {
     const existing = byNickname.get(row.nickname);
     if (existing) {
@@ -62,7 +71,12 @@ async function fetchGlobalLeaderboard(
     }
   }
 
-  return [...byNickname.values()].sort((a, b) => b.wordsGuessed - a.wordsGuessed);
+  const rows: StatRow[] = [...byNickname.values()].map((r) => ({
+    ...r,
+    average: computeAverage(r.wordsGuessed, r.gamesPlayed),
+  }));
+
+  return rows.sort((a, b) => b.average - a.average);
 }
 
 export default async function StatsPage() {
@@ -80,7 +94,7 @@ export default async function StatsPage() {
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-4 px-6 py-10 animate-pop-in">
       <div className="text-center">
         <h1 className="font-display text-2xl font-semibold">Classement {year}</h1>
-        <p className="mt-1 text-sm text-ink/60">Points cumulés sur l&apos;année</p>
+        <p className="mt-1 text-sm text-ink/60">Moyenne de points par partie jouée</p>
       </div>
 
       <Leaderboard title="🏆 Classement général (tous modes)" rows={globalRows} highlight />
@@ -136,10 +150,12 @@ function Leaderboard({
             </div>
             <div className="text-right">
               <p className="font-display text-lg font-semibold text-blue-deep">
-                {row.wordsGuessed}
+                {row.average}
+                <span className="ml-1 text-xs font-normal text-ink/40">pts/partie</span>
               </p>
               <p className="text-xs text-ink/40">
-                {row.gamesPlayed} partie{row.gamesPlayed > 1 ? "s" : ""}
+                {row.wordsGuessed} pts sur {row.gamesPlayed} partie
+                {row.gamesPlayed > 1 ? "s" : ""}
               </p>
             </div>
           </div>
