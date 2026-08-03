@@ -79,7 +79,7 @@ export async function pickWordsFromCatalog(
   // 2. Récupère les mots du catalogue pour les catégories ET difficultés choisies.
   const { data: catalogWords, error: catalogError } = await supabase
     .from("catalog_words")
-    .select("id, content")
+    .select("id, content, hint")
     .in("category", categories)
     .in("difficulty", difficulties);
 
@@ -126,7 +126,12 @@ export async function pickWordsFromCatalog(
   }
 
   const { error: insertWordsError } = await supabase.from("words").insert(
-    selected.map((w) => ({ game_id: gameId, content: w.content, is_active: true }))
+    selected.map((w) => ({
+      game_id: gameId,
+      content: w.content,
+      is_active: true,
+      hint: w.hint,
+    }))
   );
   if (insertWordsError) {
     return { success: false, error: "Impossible d'ajouter les mots du catalogue." };
