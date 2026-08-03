@@ -331,7 +331,7 @@ export async function startGameRounds(
 
 interface StartTurnResult {
   turnId: string;
-  wordQueue: { id: string; content: string }[];
+  wordQueue: { id: string; content: string; hint: string | null }[];
 }
 
 /** Démarre un tour : crée la ligne "turns" et renvoie la pile de mots restants, mélangée. */
@@ -361,7 +361,7 @@ export async function startTurn(
   }
 
   const [{ data: words }, { data: guessed }] = await Promise.all([
-    supabase.from("words").select("id, content").eq("game_id", gameId).eq("is_active", true),
+    supabase.from("words").select("id, content, hint").eq("game_id", gameId).eq("is_active", true),
     supabase.from("guessed_words").select("word_id").eq("round_id", roundId),
   ]);
 
@@ -896,10 +896,11 @@ export async function removePlayer(
 /**
  * Consomme l'indice "ampoule" d'un joueur (mode classique uniquement,
  * 1 fois par joueur pour toute la partie, les 2 manches confondues).
- * Le contenu de l'indice (1ère lettre + nombre de lettres) est calculé
- * côté client à partir du mot déjà connu de son navigateur — cette action
- * sert uniquement à valider et enregistrer que l'indice a bien été utilisé,
- * pour qu'il ne puisse pas être réutilisé plus tard dans la partie.
+ * Le contenu de l'indice (texte de sens écrit à l'avance dans le
+ * catalogue, ex: "Capitale du Kazakhstan") est déjà connu du client via
+ * le champ hint du mot — cette action sert uniquement à valider et
+ * enregistrer que l'indice a bien été utilisé, pour qu'il ne puisse pas
+ * être réutilisé plus tard dans la partie.
  */
 export async function useHint(
   gameId: string,
