@@ -14,7 +14,7 @@ import { FinalScreen } from "@/components/game/FinalScreen";
 import { PlayerManagementDrawer } from "@/components/game/PlayerManagementDrawer";
 import { BuzzerDescriberScreen } from "@/components/game/BuzzerDescriberScreen";
 import { BuzzerGuesserScreen } from "@/components/game/BuzzerGuesserScreen";
-import { startTurn, recordGuessedWord, endTurn, startNextRound } from "@/app/actions/round-actions";
+import { startTurn, recordGuessedWord, endTurn, startNextRound, useHint } from "@/app/actions/round-actions";
 import { startBuzzerTurn, pressBuzzer, resolveBuzz, skipBuzzerWord } from "@/app/actions/buzzer-actions";
 import { markPlayerConnected } from "@/app/actions/game-actions";
 import { CHRONO_MAX_PASSES } from "@/types";
@@ -129,6 +129,11 @@ export function GameRoot({
     );
     if (!result.success) return { success: false, roundComplete: false };
     return { success: true, roundComplete: result.data.roundComplete };
+  }
+
+  async function handleUseHint() {
+    const result = await useHint(game.id, currentPlayerId);
+    return { success: result.success };
   }
 
   function handleTurnEnd(foundWords: WordQueueItem[], roundComplete: boolean) {
@@ -274,8 +279,10 @@ export function GameRoot({
               blueScore={currentRound.blueTeamScore}
               yellowScore={currentRound.yellowTeamScore}
               maxPasses={game.mode === "chrono" ? CHRONO_MAX_PASSES : undefined}
+              hintUsed={currentPlayer.hintUsed}
               onWordFound={handleWordFound}
               onTurnEnd={handleTurnEnd}
+              onUseHint={handleUseHint}
             />
           );
         }
