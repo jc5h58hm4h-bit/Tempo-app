@@ -1,25 +1,43 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
 export function BuzzerDescriberScreen({
   word,
+  hint,
   wordsRemaining,
   totalWords,
   buzzerNickname,
+  hintUsed,
   onResolve,
   onSkip,
+  onUseHint,
 }: {
   word: string;
+  /** Indice de sens écrit à l'avance (catalogue uniquement), null si absent. */
+  hint: string | null;
   wordsRemaining: number;
   totalWords: number;
   buzzerNickname: string | null;
+  /** A-t-il déjà utilisé son indice (1 par partie, tous modes confondus) ? */
+  hintUsed?: boolean;
   onResolve: (correct: boolean) => void;
   onSkip: () => void;
+  onUseHint?: () => Promise<{ success: boolean }>;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [revealedHint, setRevealedHint] = useState<string | null>(null);
+  const [isHintPending, setIsHintPending] = useState(false);
+
+  // Un indice révélé ne vaut que pour le mot affiché : dès que le mot
+  // change (résolu, passé...), on le masque pour le suivant.
+  useEffect(() => {
+    setRevealedHint(null);
+  }, [word]);
+
+  const canShowHintButton = !!onUseHint && !hintUsed && !revealedHint && !!hint;
 
   function handleResolve(correct: boolean) {
     startTransition(() => {
@@ -31,6 +49,19 @@ export function BuzzerDescriberScreen({
     startTransition(() => {
       onSkip();
     });
+  }
+
+  async function handleUseHint() {
+    if (!hint || !onUseHint || hintUsed || isHintPending) return;
+    setIsHintPending(true);
+    try {
+      const result = await onUseHint();
+      if (result.success) {
+        setRevealedHint(hint);
+      }
+    } finally {
+      setIsHintPending(false);
+    }
   }
 
   return (
@@ -66,7 +97,28 @@ export function BuzzerDescriberScreen({
           <Card tone="cream" className="text-center">
             <p className="text-ink/60">En attente d&apos;un buzz...</p>
           </Card>
-          <Button variant="ghost" onClick={handleSkip} disabled={isPending}>
+
+          {hint && (
+            <div className="flex flex-col items-center gap-1">
+              {revealedHint ? (
+                <p className="rounded-full bg-yellow-pale px-4 py-1.5 text-sm font-medium text-ink">
+                  💡 {revealedHint}
+                </p>
+              ) : canShowHintButton ? (
+                <button
+                  onClick={handleUseHint}
+                  disabled={isHintPending}
+                  className="rounded-full bg-ink/5 px-4 py-1.5 text-sm font-medium text-ink/70 disabled:opacity-40"
+                >
+                  💡 Utiliser mon indice (1 pour toute la partie)
+                </button>
+              ) : (
+                <p className="text-xs text-ink/30">💡 Indice déjà utilisé</p>
+              )}
+            </div>
+          )}
+
+          <Button variant="secondary" onClick={handleSkip} disabled={isPending}>
             Passer ce mot (-1 pour toi)
           </Button>
         </div>
