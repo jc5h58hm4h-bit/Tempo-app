@@ -89,6 +89,7 @@ async function recordBuzzerAnnualStats(
 interface WordQueueEntry {
   id: string;
   content: string;
+  hint: string | null;
 }
 
 interface AdvanceResult {
@@ -323,7 +324,7 @@ export async function startBuzzerTurn(
 
   const { data: words } = await supabase
     .from("words")
-    .select("id, content")
+    .select("id, content, hint")
     .eq("game_id", gameId)
     .eq("is_active", true);
 
