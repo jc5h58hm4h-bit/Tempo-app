@@ -31,6 +31,7 @@ function mapPlayer(row: any): Player {
     score: row.score,
     joinedAt: row.joined_at,
     isConnected: row.is_connected,
+    hintUsed: row.hint_used,
   };
 }
 
