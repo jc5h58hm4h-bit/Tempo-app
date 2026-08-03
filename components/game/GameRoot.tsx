@@ -234,11 +234,14 @@ export function GameRoot({
           return (
             <BuzzerDescriberScreen
               word={currentWord?.content ?? "…"}
+              hint={currentWord?.hint ?? null}
               wordsRemaining={buzzerWordQueue.length - currentIndex}
               totalWords={buzzerWordQueue.length}
               buzzerNickname={buzzerNickname}
+              hintUsed={currentPlayer?.hintUsed}
               onResolve={handleResolveBuzz}
               onSkip={handleSkipBuzzerWord}
+              onUseHint={handleUseHint}
             />
           );
         }
