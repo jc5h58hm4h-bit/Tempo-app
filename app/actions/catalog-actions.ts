@@ -153,10 +153,18 @@ export async function pickWordsFromCatalog(
   // 5. Marque les mots piochés comme utilisés pour le cycle en cours de
   // leur sous-groupe (y compris ceux dont on vient de relancer le cycle
   // juste au-dessus : ils redeviennent "utilisés" pour ce nouveau cycle).
-  await supabase
+  const { error: markUsedError } = await supabase
     .from("catalog_words")
     .update({ used_in_cycle: true })
     .in("id", selected.map((w) => w.id));
+
+  if (markUsedError) {
+    return {
+      success: false,
+      error:
+        "Les mots ont été ajoutés mais le suivi du cycle a échoué : contacte l'administrateur (règle de sécurité manquante sur catalog_words).",
+    };
+  }
 
   return {
     success: true,
