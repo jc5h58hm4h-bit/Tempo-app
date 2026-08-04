@@ -250,18 +250,28 @@ export async function startBuzzerGame(
     return { success: false, error: "Seul l'hôte peut démarrer la partie." };
   }
 
-  const { data: playerRows } = await supabase
-    .from("players")
-    .select("*")
-    .eq("game_id", gameId)
-    .order("joined_at");
+  const [{ data: playerRows }, { data: gameRow }] = await Promise.all([
+    supabase.from("players").select("*").eq("game_id", gameId).order("joined_at"),
+    supabase.from("games").select("buzzer_last_starter_id").eq("id", gameId).maybeSingle(),
+  ]);
   const players = (playerRows ?? []).map(mapPlayer);
 
   if (players.length < GAME_RULES.MIN_PLAYERS) {
     return { success: false, error: "Il faut au moins 2 joueurs." };
   }
 
-  const first = players[0];
+  // Fait tourner qui commence : si on connaît le dernier joueur qui a
+  // démarré une partie Buzzer sur ce salon (et qu'il est toujours présent),
+  // on prend le joueur suivant dans l'ordre d'arrivée. Sinon (première
+  // partie Buzzer de ce salon), on démarre par le premier arrivé comme
+  // avant.
+  const lastStarterId = gameRow?.buzzer_last_starter_id ?? null;
+  const lastStarterIndex = lastStarterId
+    ? players.findIndex((p) => p.id === lastStarterId)
+    : -1;
+  const first =
+    lastStarterIndex !== -1 ? players[(lastStarterIndex + 1) % players.length] : players[0];
+
   if (!first) {
     return { success: false, error: "Impossible de déterminer le premier joueur." };
   }
@@ -292,6 +302,7 @@ export async function startBuzzerGame(
       current_team: null,
       buzzer_current_word_id: null,
       buzzer_player_id: null,
+      buzzer_last_starter_id: first.id,
     })
     .eq("id", gameId);
 
