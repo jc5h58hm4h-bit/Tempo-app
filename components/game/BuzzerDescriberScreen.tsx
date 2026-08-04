@@ -3,6 +3,10 @@
 import { useEffect, useState, useTransition } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Timer } from "@/components/game/Timer";
+
+/** Temps laissé pour buzzer sur un mot avant qu'il ne soit automatiquement passé. */
+const BUZZER_WORD_TIMER_SECONDS = 20;
 
 export function BuzzerDescriberScreen({
   word,
@@ -31,8 +35,9 @@ export function BuzzerDescriberScreen({
   const [revealedHint, setRevealedHint] = useState<string | null>(null);
   const [isHintPending, setIsHintPending] = useState(false);
 
-  // Un indice révélé ne vaut que pour le mot affiché : dès que le mot
-  // change (résolu, passé...), on le masque pour le suivant.
+  // Un indice révélé, et le fait d'avoir déjà agi sur ce mot, ne valent que
+  // pour le mot affiché : dès que le mot change (résolu, passé, temps
+  // écoulé...), tout se réinitialise pour le suivant.
   useEffect(() => {
     setRevealedHint(null);
   }, [word]);
@@ -49,6 +54,13 @@ export function BuzzerDescriberScreen({
     startTransition(() => {
       onSkip();
     });
+  }
+
+  function handleTimerExpire() {
+    // Le temps est écoulé sans qu'aucun buzz n'ait eu lieu : exactement
+    // comme un "Passer" manuel (le mot est perdu, -1 point).
+    if (isPending || buzzerNickname) return;
+    handleSkip();
   }
 
   async function handleUseHint() {
@@ -69,6 +81,17 @@ export function BuzzerDescriberScreen({
       <p className="text-center text-sm font-medium text-ink/50">
         Mot {totalWords - wordsRemaining + 1} sur {totalWords}
       </p>
+
+      {!buzzerNickname && (
+        <div className="flex justify-center">
+          <Timer
+            key={word}
+            durationSeconds={BUZZER_WORD_TIMER_SECONDS}
+            isRunning={!isPending}
+            onExpire={handleTimerExpire}
+          />
+        </div>
+      )}
 
       <div className="flex flex-1 items-center justify-center">
         <div className="flex aspect-[4/5] w-full items-center justify-center rounded-xl2 bg-white p-8 shadow-card">
