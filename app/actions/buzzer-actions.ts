@@ -3,6 +3,7 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { shuffleArray } from "@/lib/utils";
 import { nextUnplayedPlayerInOrder } from "@/lib/turn-order";
+import { determineNextBuzzerStarter } from "@/lib/buzzer-rotation";
 import { DEFAULT_BUZZER_WORDS_PER_TURN, GAME_RULES } from "@/types";
 import type { ActionResult } from "@/lib/action-result";
 import type { Player } from "@/types";
@@ -239,7 +240,7 @@ interface StartBuzzerGameResult {
 
 /**
  * Démarre une partie en mode Buzzer : pas d'équipes, le premier joueur
- * (par ordre d'arrivée) devient le premier à faire deviner.
+ * fait tourner d'une partie à l'autre (voir determineNextBuzzerStarter).
  */
 export async function startBuzzerGame(
   gameId: string,
@@ -260,17 +261,7 @@ export async function startBuzzerGame(
     return { success: false, error: "Il faut au moins 2 joueurs." };
   }
 
-  // Fait tourner qui commence : si on connaît le dernier joueur qui a
-  // démarré une partie Buzzer sur ce salon (et qu'il est toujours présent),
-  // on prend le joueur suivant dans l'ordre d'arrivée. Sinon (première
-  // partie Buzzer de ce salon), on démarre par le premier arrivé comme
-  // avant.
-  const lastStarterId = gameRow?.buzzer_last_starter_id ?? null;
-  const lastStarterIndex = lastStarterId
-    ? players.findIndex((p) => p.id === lastStarterId)
-    : -1;
-  const first =
-    lastStarterIndex !== -1 ? players[(lastStarterIndex + 1) % players.length] : players[0];
+  const first = determineNextBuzzerStarter(players, gameRow?.buzzer_last_starter_id ?? null);
 
   if (!first) {
     return { success: false, error: "Impossible de déterminer le premier joueur." };
