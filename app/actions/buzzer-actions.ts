@@ -528,3 +528,44 @@ export async function skipBuzzerWord(
 
   return { success: true, data: result };
 }
+
+/**
+ * Relance une partie Buzzer terminée avec exactement les mêmes mots et les
+ * mêmes joueurs. Contrairement au mode classique (où un mot "consommé" est
+ * simplement suivi via la table guessed_words), le mode Buzzer désactive
+ * définitivement chaque mot au fil de la partie (bonne réponse, mauvaise
+ * réponse, ou passé) : pour vraiment rejouer avec les mêmes mots, il faut
+ * donc les réactiver tous avant de redémarrer.
+ */
+export async function replaySameWordsBuzzer(
+  gameId: string,
+  hostPlayerId: string
+): Promise<ActionResult<StartBuzzerGameResult>> {
+  const supabase = getSupabaseServerClient();
+  if (!(await assertIsHost(supabase, gameId, hostPlayerId))) {
+    return { success: false, error: "Seul l'hôte peut relancer une partie." };
+  }
+
+  const { data: oldRounds } = await supabase
+    .from("rounds")
+    .select("id")
+    .eq("game_id", gameId);
+  const oldRoundIds = (oldRounds ?? []).map((r) => r.id);
+
+  if (oldRoundIds.length > 0) {
+    await supabase.from("guessed_words").delete().in("round_id", oldRoundIds);
+    await supabase.from("turns").delete().in("round_id", oldRoundIds);
+    await supabase.from("rounds").delete().in("id", oldRoundIds);
+  }
+
+  await supabase.from("words").update({ is_active: true }).eq("game_id", gameId);
+
+  await supabase
+    .from("players")
+    .update({ score: 0, hint_used: false })
+    .eq("game_id", gameId);
+
+  // Réutilise exactement la même logique de démarrage qu'une nouvelle
+  // partie Buzzer (rotation du premier joueur incluse).
+  return startBuzzerGame(gameId, hostPlayerId);
+}
