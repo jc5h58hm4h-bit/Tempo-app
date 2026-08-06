@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { replaySameWords, newGameSamePlayers } from "@/app/actions/round-actions";
+import { replaySameWordsBuzzer } from "@/app/actions/buzzer-actions";
 import { clearPlayerSession } from "@/lib/session";
 import { TEAM_LABELS } from "@/lib/constants";
 import { sumRoundScores, determineWinningTeam } from "@/lib/game-rules";
@@ -102,7 +103,10 @@ export function FinalScreen({
 
   function handleReplay() {
     startTransition(async () => {
-      const result = await replaySameWords(gameId, hostPlayerId);
+      const result =
+        gameMode === "buzzer"
+          ? await replaySameWordsBuzzer(gameId, hostPlayerId)
+          : await replaySameWords(gameId, hostPlayerId);
       // La redirection est automatique : GameRoot détecte le changement de
       // statut de la partie ("in_progress") via Realtime et affiche la manche 1.
       if (!result.success) {
