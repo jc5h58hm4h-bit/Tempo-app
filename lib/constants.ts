@@ -8,7 +8,7 @@ import type { TurnDurationSeconds } from "@/types";
 export const APP_NAME = "Tempo";
 
 export const APP_DESCRIPTION =
-  "Le jeu de mots à faire deviner, entre 2 et 4 joueurs.";
+  "Le jeu de mots à faire deviner, entre 2 et 6 joueurs.";
 
 export const TURN_DURATION_OPTIONS: TurnDurationSeconds[] = [30, 45, 60];
 
