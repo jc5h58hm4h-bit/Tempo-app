@@ -136,7 +136,7 @@ export interface GuessedWord {
 /** Limites de la partie, réutilisées côté client et côté serveur. */
 export const GAME_RULES = {
   MIN_PLAYERS: 2,
-  MAX_PLAYERS: 4,
+  MAX_PLAYERS: 6,
   MAX_WORD_LENGTH: 40,
   GAME_CODE_LENGTH: 6,
 } as const;
