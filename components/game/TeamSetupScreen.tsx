@@ -133,6 +133,16 @@ export function TeamSetupScreen({
         </>
       ) : (
         <>
+          {gameMode === "bombe" && (
+            <Card tone="yellow" className="text-center">
+              <p className="text-sm text-ink/70">
+                💣 Chaque tour dure 2 min 30. Passer un mot fait avancer une jauge
+                d&apos;explosion cachée — si elle atteint son seuil, le tour s&apos;arrête
+                net, même avant la fin du chrono.
+              </p>
+            </Card>
+          )}
+
           {teamPickerMode === "choice" && !teamsAssigned && (
             <div className="flex flex-col gap-3">
               <Button onClick={handleAuto} disabled={isPending}>
@@ -181,41 +191,46 @@ function GameModePicker({
   return (
     <Card className="flex flex-col gap-2">
       <p className="text-sm font-medium text-ink/70">Mode de jeu</p>
-      <div className="flex flex-col gap-2">
-        <div className="flex gap-2">
-          <button
-            onClick={() => onChange("classic")}
-            disabled={disabled}
-            className={`flex-1 rounded-2xl px-3 py-3 text-left ${
-              mode === "classic" ? "bg-blue-deep text-cream" : "bg-ink/5 text-ink/60"
-            }`}
-          >
-            <p className="font-display font-semibold">Classique</p>
-            <p className="text-xs opacity-80">2 manches, mots partagés</p>
-          </button>
-          <button
-            onClick={() => onChange("chrono")}
-            disabled={disabled}
-            className={`flex-1 rounded-2xl px-3 py-3 text-left ${
-              mode === "chrono" ? "bg-yellow-vivid text-ink" : "bg-ink/5 text-ink/60"
-            }`}
-          >
-            <p className="font-display font-semibold">Chrono</p>
-            <p className="text-xs opacity-80">2 min par joueur, 3 passes max</p>
-          </button>
-        </div>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={() => onChange("classic")}
+          disabled={disabled}
+          className={`rounded-2xl px-3 py-3 text-left ${
+            mode === "classic" ? "bg-blue-deep text-cream" : "bg-ink/5 text-ink/60"
+          }`}
+        >
+          <p className="font-display font-semibold">Classique</p>
+          <p className="text-xs opacity-80">2 manches, mots partagés</p>
+        </button>
+        <button
+          onClick={() => onChange("chrono")}
+          disabled={disabled}
+          className={`rounded-2xl px-3 py-3 text-left ${
+            mode === "chrono" ? "bg-yellow-vivid text-ink" : "bg-ink/5 text-ink/60"
+          }`}
+        >
+          <p className="font-display font-semibold">Chrono</p>
+          <p className="text-xs opacity-80">2 min par joueur, 3 passes max</p>
+        </button>
         <button
           onClick={() => onChange("buzzer")}
           disabled={disabled}
-          className={`w-full rounded-2xl px-3 py-3 text-left ${
+          className={`rounded-2xl px-3 py-3 text-left ${
             mode === "buzzer" ? "bg-blue-deep text-cream" : "bg-ink/5 text-ink/60"
           }`}
         >
           <p className="font-display font-semibold">Buzzer</p>
-          <p className="text-xs opacity-80">
-            Un joueur fait deviner, les autres buzzent — premier arrivé, premier servi.
-            Chacun pour soi.
-          </p>
+          <p className="text-xs opacity-80">Chacun pour soi, premier arrivé premier servi</p>
+        </button>
+        <button
+          onClick={() => onChange("bombe")}
+          disabled={disabled}
+          className={`rounded-2xl px-3 py-3 text-left ${
+            mode === "bombe" ? "bg-red-600 text-cream" : "bg-ink/5 text-ink/60"
+          }`}
+        >
+          <p className="font-display font-semibold">💣 Bombe</p>
+          <p className="text-xs opacity-80">2 min 30, passer fait avancer la jauge</p>
         </button>
       </div>
     </Card>
@@ -223,7 +238,8 @@ function GameModePicker({
 }
 
 function GameModeBadge({ mode }: { mode: GameMode }) {
-  const label = mode === "chrono" ? "Chrono" : mode === "buzzer" ? "Buzzer" : "Classique";
+  const label =
+    mode === "chrono" ? "Chrono" : mode === "buzzer" ? "Buzzer" : mode === "bombe" ? "Bombe" : "Classique";
   return (
     <span className="rounded-full bg-ink/5 px-3 py-1 text-sm font-medium text-ink/60">
       Mode : {label}
