@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { TEAM_LABELS } from "@/lib/constants";
 import { determineWinningTeam } from "@/lib/game-rules";
 import { ROUND_DEFINITIONS } from "@/types";
-import type { RoundNumber } from "@/types";
+import type { GameMode, RoundNumber } from "@/types";
 
 export function RoundSummary({
   roundNumber,
@@ -12,6 +12,7 @@ export function RoundSummary({
   isHost,
   onNextRound,
   isPending,
+  mode = "classic",
 }: {
   roundNumber: RoundNumber;
   blueScore: number;
@@ -19,10 +20,12 @@ export function RoundSummary({
   isHost: boolean;
   onNextRound: () => void;
   isPending: boolean;
+  mode?: GameMode;
 }) {
   const leader = determineWinningTeam(blueScore, yellowScore);
   const isTie = leader === "tie";
   const nextRoundDef = ROUND_DEFINITIONS[(roundNumber + 1) as RoundNumber];
+  const nextRoundLabel = mode === "bombe" ? "💣 Bombe" : nextRoundDef.name;
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-4 px-6 py-10">
@@ -44,10 +47,9 @@ export function RoundSummary({
           {isTie ? "Égalité sur cette manche" : `${TEAM_LABELS[leader]} mène le jeu`}
         </p>
       </Card>
-
       {isHost ? (
         <Button variant="yellow" onClick={onNextRound} disabled={isPending}>
-          Commencer la manche suivante — {nextRoundDef.name}
+          Commencer la manche suivante — {nextRoundLabel}
         </Button>
       ) : (
         <p className="text-center text-sm text-ink/40">
