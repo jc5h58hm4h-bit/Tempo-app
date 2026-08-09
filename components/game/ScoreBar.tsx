@@ -14,13 +14,19 @@ export function ScoreBar({
   mode?: GameMode;
 }) {
   const roundDef = ROUND_DEFINITIONS[round];
+
+  let subtitle: string;
+  if (mode === "chrono") {
+    subtitle = "Chrono — 2 minutes";
+  } else if (mode === "bombe") {
+    subtitle = `Manche ${roundDef.number} sur 2 · 💣 Bombe`;
+  } else {
+    subtitle = `Manche ${roundDef.number} sur 2 · ${roundDef.name}`;
+  }
+
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-center text-sm font-medium text-ink/50">
-        {mode === "chrono"
-          ? "Chrono — 2 minutes"
-          : `Manche ${roundDef.number} sur 2 · ${roundDef.name}`}
-      </p>
+      <p className="text-center text-sm font-medium text-ink/50">{subtitle}</p>
       <div className="flex gap-2">
         <div className="flex-1 rounded-2xl bg-blue-pale px-3 py-2 text-center">
           <p className="text-xs font-medium text-blue-deep/70">{TEAM_LABELS.blue}</p>
