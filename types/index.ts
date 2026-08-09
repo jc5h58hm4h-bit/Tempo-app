@@ -3,7 +3,9 @@
 //   1. Description libre
 //   2. Un seul mot
 // En mode "chrono", il n'y a qu'un seul tour de 2 minutes par joueur (voir
-// GameMode ci-dessous).
+// GameMode ci-dessous). En mode "bombe", les équipes et les 2 manches
+// fonctionnent comme en classique, mais chaque tour dure 2 min 30 et passer
+// un mot fait avancer une jauge d'explosion cachée.
 
 export type Team = "blue" | "yellow";
 
@@ -14,20 +16,15 @@ export type Team = "blue" | "yellow";
  * "buzzer" : un joueur fait deviner, les autres ont chacun un buzzer.
  * Premier arrivé, premier servi : le joueur qui a buzzé dit lui-même si sa
  * réponse est juste ou fausse. 15 mots par tour, un tour par joueur.
+ * "bombe" : équipes et 2 manches façon mode classique, mais chaque tour
+ * dure 2 min 30 et chaque "Passer" fait avancer une jauge d'explosion
+ * cachée : si elle atteint son seuil (tiré au hasard à chaque tour), le
+ * tour s'arrête immédiatement, avant même la fin du chrono.
  */
 export type GameMode = "classic" | "chrono" | "buzzer" | "bombe";
 
 export const BUZZER_WORDS_PER_TURN_OPTIONS = [10, 15, 20] as const;
 export const DEFAULT_BUZZER_WORDS_PER_TURN = 15;
-/** Mode Bombe : équipes façon mode classique, mais chaque tour dure 2 min 30
- * et passer un mot fait avancer une jauge d'explosion cachée. */
-export const BOMBE_TURN_DURATION_SECONDS = 150;
-/** Nombre de mots suggéré par le raccourci "Bombe" dans le catalogue. */
-export const BOMBE_CATALOG_WORD_COUNT = 60;
-/** Seuil d'explosion tiré au hasard à chaque tour, entre ces deux bornes
- * incluses (nombre de "Passer" avant que la bombe explose). */
-export const BOMBE_EXPLOSION_MIN_PASSES = 3;
-export const BOMBE_EXPLOSION_MAX_PASSES = 7;
 
 export type GameStatus =
   | "lobby" // salon d'attente, la partie n'a pas démarré
@@ -62,11 +59,21 @@ export const ROUND_DEFINITIONS: Record<RoundNumber, RoundDefinition> = {
   },
 };
 
-export type TurnDurationSeconds = 30 | 45 | 60 | 120;
+export type TurnDurationSeconds = 30 | 45 | 60 | 120 | 150;
 
 /** Nombre de passes maximum par joueur en mode chrono (illimité en classique). */
 export const CHRONO_MAX_PASSES = 3;
 export const CHRONO_TURN_DURATION_SECONDS: TurnDurationSeconds = 120;
+
+/** Mode Bombe : équipes façon mode classique, mais chaque tour dure 2 min 30
+ * et passer un mot fait avancer une jauge d'explosion cachée. */
+export const BOMBE_TURN_DURATION_SECONDS: TurnDurationSeconds = 150;
+/** Nombre de mots suggéré par le raccourci "Bombe" dans le catalogue. */
+export const BOMBE_CATALOG_WORD_COUNT = 60;
+/** Seuil d'explosion tiré au hasard à chaque tour, entre ces deux bornes
+ * incluses (nombre de "Passer" avant que la bombe explose). */
+export const BOMBE_EXPLOSION_MIN_PASSES = 3;
+export const BOMBE_EXPLOSION_MAX_PASSES = 7;
 
 export interface Game {
   id: string;
@@ -98,7 +105,7 @@ export interface Player {
   score: number;
   joinedAt: string;
   isConnected: boolean;
-  /** Mode classique uniquement : a-t-il déjà utilisé son indice (1 par partie) ? */
+  /** A-t-il déjà utilisé son indice (1 par partie, tous modes confondus) ? */
   hintUsed: boolean;
 }
 
