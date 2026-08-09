@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Timer } from "@/components/game/Timer";
 import { ScoreBar } from "@/components/game/ScoreBar";
 import { Button } from "@/components/ui/Button";
+import { BOMBE_EXPLOSION_MIN_PASSES, BOMBE_EXPLOSION_MAX_PASSES } from "@/types";
 import type { GameMode, RoundNumber, Team } from "@/types";
 
 interface WordQueueItem {
@@ -21,13 +22,18 @@ interface PlayingScreenProps {
   initialQueue: WordQueueItem[];
   blueScore: number;
   yellowScore: number;
-  /** Nombre de passes maximum pour ce tour. undefined = illimité (mode classique). */
+  /** Nombre de passes maximum pour ce tour. undefined = illimité (mode classique et bombe). */
   maxPasses?: number;
   /** Mode classique uniquement : ce joueur a-t-il déjà utilisé son indice ? */
   hintUsed?: boolean;
   onWordFound: (word: WordQueueItem) => Promise<{ success: boolean; roundComplete: boolean }>;
   onTurnEnd: (foundWords: WordQueueItem[], roundComplete: boolean) => void;
   onUseHint?: () => Promise<{ success: boolean }>;
+}
+
+/** Entier aléatoire entre min et max inclus. */
+function randomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 export function PlayingScreen({
@@ -57,6 +63,15 @@ export function PlayingScreen({
   // sans ce verrou la pile locale avançait quand même, sautant le mot suivant
   // sans jamais l'enregistrer réellement en base).
   const isSubmittingRef = useRef(false);
+
+  const isBombe = mode === "bombe";
+  // Seuil d'explosion tiré une seule fois au tout début du tour, et jamais
+  // révélé au joueur : c'est ce qui crée la tension du mode Bombe. Comme ce
+  // composant est remonté à neuf à chaque nouveau tour (voir GameRoot), ce
+  // useState(() => ...) tire bien une nouvelle valeur à chaque tour.
+  const [explosionThreshold] = useState(() =>
+    isBombe ? randomInt(BOMBE_EXPLOSION_MIN_PASSES, BOMBE_EXPLOSION_MAX_PASSES) : Infinity
+  );
 
   const currentWord = queue[0];
   const passLimitReached = maxPasses !== undefined && passesUsed >= maxPasses;
@@ -110,11 +125,24 @@ export function PlayingScreen({
   function handlePass() {
     if (!currentWord || isBlockedRef.current || queue.length <= 1) return;
     if (passLimitReached) return;
+
+    const nextPassesUsed = passesUsed + 1;
+    setPassesUsed(nextPassesUsed);
+
+    // Mode Bombe : chaque "Passer" fait avancer la jauge d'explosion cachée.
+    // Si le seuil tiré au début du tour est atteint, le tour s'arrête net,
+    // même avant la fin du chrono.
+    if (isBombe && nextPassesUsed >= explosionThreshold) {
+      isBlockedRef.current = true;
+      setIsBlocked(true);
+      onTurnEnd(foundWordsRef.current, false);
+      return;
+    }
+
     setQueue((q) => {
       const [first, ...rest] = q;
       return first ? [...rest, first] : q;
     });
-    setPassesUsed((p) => p + 1);
   }
 
   async function handleUseHint() {
@@ -134,8 +162,9 @@ export function PlayingScreen({
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-4 px-6 py-6">
       <ScoreBar round={round} blueScore={scores.blue} yellowScore={scores.yellow} mode={mode} />
 
-      <div className="flex justify-center">
+      <div className="flex items-center justify-center gap-3">
         <Timer durationSeconds={durationSeconds} isRunning={!isBlocked} onExpire={handleExpire} />
+        {isBombe && <span className="text-2xl">💣</span>}
       </div>
 
       <div className="flex flex-1 items-center justify-center">
@@ -149,6 +178,12 @@ export function PlayingScreen({
       {maxPasses !== undefined && (
         <p className="text-center text-xs text-ink/40">
           Passes restantes : {Math.max(0, maxPasses - passesUsed)} / {maxPasses}
+        </p>
+      )}
+
+      {isBombe && (
+        <p className="text-center text-xs text-ink/40">
+          💣 Chaque "Passer" fait avancer la jauge d&apos;explosion cachée...
         </p>
       )}
 
