@@ -202,6 +202,7 @@ export function GameRoot({
           isHost={isHost}
           onNextRound={handleNextRound}
           isPending={false}
+          mode={game.mode}
         />
       );
     }
@@ -269,7 +270,7 @@ export function GameRoot({
       }
     }
 
-    // --- Modes Classique / Chrono ----------------------------------------
+    // --- Modes Classique / Chrono / Bombe --------------------------------
     if (game.status === "in_progress" && currentRound && !isBuzzerMode) {
       if (isMyTurn && currentPlayer?.team) {
         if (turnPhase === "playing" && turnData) {
