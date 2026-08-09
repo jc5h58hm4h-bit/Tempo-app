@@ -10,6 +10,7 @@ import {
   CATALOG_DIFFICULTY_LABELS,
   CATALOG_WORD_COUNT_OPTIONS,
   CHRONO_CATALOG_WORD_COUNT,
+  BOMBE_CATALOG_WORD_COUNT,
 } from "@/lib/catalog";
 import type { CatalogCategory, CatalogDifficulty } from "@/lib/catalog";
 
@@ -171,6 +172,16 @@ export function CatalogPicker({
             }`}
           >
             Chrono ({CHRONO_CATALOG_WORD_COUNT})
+          </button>
+          <button
+            onClick={() => setCount(BOMBE_CATALOG_WORD_COUNT)}
+            className={`rounded-full px-3 h-8 text-sm font-medium ${
+              count === BOMBE_CATALOG_WORD_COUNT
+                ? "bg-yellow-vivid text-ink"
+                : "bg-ink/5 text-ink/50"
+            }`}
+          >
+            Bombe ({BOMBE_CATALOG_WORD_COUNT})
           </button>
         </div>
       </div>
