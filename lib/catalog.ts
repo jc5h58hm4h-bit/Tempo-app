@@ -59,3 +59,5 @@ export const CATALOG_WORD_COUNT_OPTIONS = [10, 20, 30, 40] as const;
 
 /** Raccourci "Chrono" : pioche directement un gros volume de mots en un coup. */
 export const CHRONO_CATALOG_WORD_COUNT = 90;
+/** Raccourci "Bombe" : pioche directement 60 mots en un coup. */
+export const BOMBE_CATALOG_WORD_COUNT = 60;
