@@ -19,6 +19,13 @@ interface RoundResult {
   yellowScore: number;
 }
 
+/** Nom affiché pour une manche donnée, selon le mode de jeu. */
+function roundName(gameMode: GameMode, roundNumber: number): string {
+  if (gameMode === "chrono") return "Chrono";
+  if (gameMode === "bombe") return "Bombe";
+  return roundNumber === 1 ? "Description libre" : "Un seul mot";
+}
+
 export function FinalScreen({
   gameId,
   gameCode,
@@ -50,12 +57,7 @@ export function FinalScreen({
         setRounds(
           (data ?? []).map((r) => ({
             roundNumber: r.round_number,
-            name:
-              gameMode === "chrono"
-                ? "Chrono"
-                : r.round_number === 1
-                  ? "Description libre"
-                  : "Un seul mot",
+            name: roundName(gameMode, r.round_number),
             blueScore: r.blue_team_score,
             yellowScore: r.yellow_team_score,
           }))
@@ -66,7 +68,8 @@ export function FinalScreen({
   // Un mot trouvé est enregistré avec l'identifiant du joueur qui FAISAIT
   // deviner (celui qui tenait le téléphone). Ici on veut au contraire créditer
   // le ou les coéquipiers qui ont DEVINÉ le mot. Dans une équipe de 2, le mot
-  // est donc crédité à l'autre membre de l'équipe ; dans une équipe d'1 seul
+  // est donc crédité à l'autre membre de l'équipe ; dans une équipe de 3, il
+  // est crédité aux deux autres coéquipiers ; dans une équipe d'1 seul
   // joueur, les deux rôles se confondent et le mot lui reste crédité. En mode
   // Buzzer il n'y a pas d'équipes : ce calcul ne sert pas (on utilise
   // directement le score du joueur, qui cumule déjà ses deux rôles).
@@ -78,24 +81,25 @@ export function FinalScreen({
       .select("player_id")
       .eq("game_id", gameId)
       .then(({ data }) => {
-        const teammateOf: Record<string, string> = {};
+        const teammatesOf: Record<string, string[]> = {};
         for (const team of ["blue", "yellow"] as const) {
           const members = players.filter((p) => p.team === team);
-          const first = members[0];
-          const second = members[1];
-          if (first && second) {
-            teammateOf[first.id] = second.id;
-            teammateOf[second.id] = first.id;
-          } else if (first) {
-            teammateOf[first.id] = first.id;
+          for (const member of members) {
+            const others = members.filter((p) => p.id !== member.id).map((p) => p.id);
+            teammatesOf[member.id] = others.length > 0 ? others : [member.id];
           }
         }
 
         const counts: Record<string, number> = {};
         for (const row of data ?? []) {
           const describerId = row.player_id as string;
-          const guesserId = teammateOf[describerId] ?? describerId;
-          counts[guesserId] = (counts[guesserId] ?? 0) + 1;
+          const guessers = teammatesOf[describerId] ?? [describerId];
+          // Avec une équipe de 3, on ne sait pas lequel des deux coéquipiers
+          // a deviné le mot précis : on répartit le crédit entre eux plutôt
+          // que de le laisser sur le seul describer.
+          for (const guesserId of guessers) {
+            counts[guesserId] = (counts[guesserId] ?? 0) + 1 / guessers.length;
+          }
         }
         setGuessedCounts(counts);
       });
@@ -200,7 +204,7 @@ export function FinalScreen({
     );
   }
 
-  // --- Modes Classique / Chrono : scores par équipe ------------------------
+  // --- Modes Classique / Chrono / Bombe : scores par équipe ---------------
   const { blue: totalBlue, yellow: totalYellow } = sumRoundScores(
     rounds.map((r) => ({ blueTeamScore: r.blueScore, yellowTeamScore: r.yellowScore }))
   );
@@ -211,7 +215,7 @@ export function FinalScreen({
     (a, b) => (guessedCounts[b.id] ?? 0) - (guessedCounts[a.id] ?? 0)
   );
   const bestPlayer = rankedPlayers[0];
-  const bestPlayerCount = bestPlayer ? guessedCounts[bestPlayer.id] ?? 0 : 0;
+  const bestPlayerCount = bestPlayer ? Math.round(guessedCounts[bestPlayer.id] ?? 0) : 0;
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-4 px-6 py-10 animate-pop-in">
@@ -237,7 +241,11 @@ export function FinalScreen({
         <div className="flex flex-col gap-1 border-t border-ink/10 pt-3 text-sm">
           {rounds.map((r) => (
             <div key={r.roundNumber} className="flex justify-between text-ink/60">
-              <span>{gameMode === "chrono" ? r.name : `Manche ${r.roundNumber} — ${r.name}`}</span>
+              <span>
+                {gameMode === "chrono" || gameMode === "bombe"
+                  ? r.name
+                  : `Manche ${r.roundNumber} — ${r.name}`}
+              </span>
               <span>
                 {r.blueScore} – {r.yellowScore}
               </span>
@@ -262,7 +270,7 @@ export function FinalScreen({
         {rankedPlayers.map((player) => (
           <div key={player.id} className="flex justify-between text-sm">
             <span>{player.nickname}</span>
-            <span className="font-medium">{guessedCounts[player.id] ?? 0}</span>
+            <span className="font-medium">{Math.round(guessedCounts[player.id] ?? 0)}</span>
           </div>
         ))}
       </Card>
