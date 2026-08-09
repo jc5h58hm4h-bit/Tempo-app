@@ -18,6 +18,7 @@ const MODE_LABELS: Record<GameMode, string> = {
   classic: "Mode Classique",
   chrono: "Mode Chrono",
   buzzer: "Mode Buzzer",
+  bombe: "Mode Bombe",
 };
 
 function computeAverage(wordsGuessed: number, gamesPlayed: number): number {
@@ -46,7 +47,7 @@ async function fetchLeaderboard(
   return rows.sort((a, b) => b.average - a.average);
 }
 
-/** Classement toutes catégories confondues : cumule les 3 modes par pseudo. */
+/** Classement toutes catégories confondues : cumule les 4 modes par pseudo. */
 async function fetchGlobalLeaderboard(
   supabase: ReturnType<typeof getSupabaseServerClient>,
   year: number
@@ -83,11 +84,12 @@ export default async function StatsPage() {
   const supabase = getSupabaseServerClient();
   const year = new Date().getFullYear();
 
-  const [globalRows, classicRows, chronoRows, buzzerRows] = await Promise.all([
+  const [globalRows, classicRows, chronoRows, buzzerRows, bombeRows] = await Promise.all([
     fetchGlobalLeaderboard(supabase, year),
     fetchLeaderboard(supabase, year, "classic"),
     fetchLeaderboard(supabase, year, "chrono"),
     fetchLeaderboard(supabase, year, "buzzer"),
+    fetchLeaderboard(supabase, year, "bombe"),
   ]);
 
   return (
@@ -101,6 +103,7 @@ export default async function StatsPage() {
       <Leaderboard title={MODE_LABELS.classic} rows={classicRows} />
       <Leaderboard title={MODE_LABELS.chrono} rows={chronoRows} />
       <Leaderboard title={MODE_LABELS.buzzer} rows={buzzerRows} />
+      <Leaderboard title={MODE_LABELS.bombe} rows={bombeRows} />
 
       <Link href="/">
         <Button variant="ghost">Retour à l&apos;accueil</Button>
