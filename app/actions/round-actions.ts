@@ -7,7 +7,7 @@ import { isRoundComplete, computeNextRoundNumber } from "@/lib/game-rules";
 import { DEFAULT_TURN_DURATION } from "@/lib/constants";
 import type { ActionResult } from "@/lib/action-result";
 import type { GameMode, Player, Team } from "@/types";
-import { CHRONO_TURN_DURATION_SECONDS, GAME_RULES } from "@/types";
+import { CHRONO_TURN_DURATION_SECONDS, BOMBE_TURN_DURATION_SECONDS, GAME_RULES } from "@/types";
 
 async function assertIsHost(
   supabase: ReturnType<typeof getSupabaseServerClient>,
@@ -83,9 +83,8 @@ function opposingTeam(team: Team): Team {
  * À la toute fin d'une partie, calcule les mots devinés par chaque joueur
  * (créditant le coéquipier qui devinait, pas celui qui faisait deviner —
  * même logique que l'écran de fin de partie) et cumule ça dans la table
- * player_stats, par pseudo, par année ET par mode de jeu (classique ou
- * chrono sont comptabilisés séparément). Cette table est indépendante des
- * parties elles-mêmes, donc elle survit au nettoyage automatique.
+ * player_stats, par pseudo, par année ET par mode de jeu (classique, chrono
+ * et bombe sont comptabilisés séparément).
  */
 async function recordAnnualStats(
   supabase: ReturnType<typeof getSupabaseServerClient>,
@@ -163,9 +162,9 @@ async function recordAnnualStats(
 // --- Équipes ---------------------------------------------------------
 
 /**
- * Constitue automatiquement deux équipes équilibrées.
- * Avec 2 joueurs : chacun forme sa propre équipe.
- * Avec 3 ou 4 joueurs : répartition la plus équilibrée possible.
+ * Constitue automatiquement des équipes équilibrées (répartition alternée
+ * après mélange : fonctionne pour 2, 4 ou 6 joueurs, donnant 1v1, 2v2 ou
+ * 3v3 selon le nombre de joueurs présents).
  */
 export async function assignTeamsAuto(
   gameId: string,
@@ -228,8 +227,8 @@ export async function assignTeamsManual(
 // --- Démarrage des manches --------------------------------------------
 
 /**
- * Change le mode de la partie (classique ou chrono), avant le lancement.
- * Appelée depuis l'écran de constitution des équipes.
+ * Change le mode de la partie (classique, chrono, buzzer ou bombe), avant
+ * le lancement. Appelée depuis l'écran de constitution des équipes.
  */
 export async function setGameMode(
   gameId: string,
@@ -313,7 +312,11 @@ export async function startGameRounds(
       current_player_id: first.id,
       current_team: first.team,
       turn_duration_seconds:
-        mode === "chrono" ? CHRONO_TURN_DURATION_SECONDS : DEFAULT_TURN_DURATION,
+        mode === "chrono"
+          ? CHRONO_TURN_DURATION_SECONDS
+          : mode === "bombe"
+            ? BOMBE_TURN_DURATION_SECONDS
+            : DEFAULT_TURN_DURATION,
     })
     .eq("id", gameId);
 
@@ -460,11 +463,12 @@ interface EndTurnResult {
 }
 
 /**
- * Termine le tour courant (temps écoulé ou pile de mots épuisée) et fait
- * avancer la partie : joueur suivant, ou passage à l'écran de fin de
- * manche / partie. Le comportement diffère selon le mode :
- * - "classic" : la pile de mots épuisée termine toute la manche (round
- *   partagé entre les joueurs).
+ * Termine le tour courant (temps écoulé, bombe explosée, ou pile de mots
+ * épuisée) et fait avancer la partie : joueur suivant, ou passage à
+ * l'écran de fin de manche / partie. Le comportement diffère selon le
+ * mode :
+ * - "classic" et "bombe" : la pile de mots épuisée termine toute la
+ *   manche (round partagé entre les joueurs, équipes façon classique).
  * - "chrono" : chaque joueur ne joue qu'une fois ; la pile de mots vide ne
  *   termine QUE le tour de ce joueur, pas la partie. La partie se termine
  *   quand tout le monde a joué son unique tour.
@@ -535,7 +539,7 @@ export async function endTurn(
     };
   }
 
-  // --- Mode classique (comportement d'origine, inchangé) -----------------
+  // --- Modes classique et bombe (équipes, 2 manches) ---------------------
   if (roundComplete) {
     const { data: round } = await supabase
       .from("rounds")
@@ -557,7 +561,7 @@ export async function endTurn(
       .eq("id", gameId);
 
     if (isFinalRound) {
-      await recordAnnualStats(supabase, gameId, "classic");
+      await recordAnnualStats(supabase, gameId, mode);
     }
 
     return {
@@ -894,13 +898,12 @@ export async function removePlayer(
 }
 
 /**
- * Consomme l'indice "ampoule" d'un joueur (mode classique uniquement,
- * 1 fois par joueur pour toute la partie, les 2 manches confondues).
- * Le contenu de l'indice (texte de sens écrit à l'avance dans le
- * catalogue, ex: "Capitale du Kazakhstan") est déjà connu du client via
- * le champ hint du mot — cette action sert uniquement à valider et
- * enregistrer que l'indice a bien été utilisé, pour qu'il ne puisse pas
- * être réutilisé plus tard dans la partie.
+ * Consomme l'indice "ampoule" d'un joueur (1 fois par joueur pour toute la
+ * partie, tous modes confondus). Le contenu de l'indice (texte de sens
+ * écrit à l'avance dans le catalogue, ex: "Capitale du Kazakhstan") est
+ * déjà connu du client via le champ hint du mot — cette action sert
+ * uniquement à valider et enregistrer que l'indice a bien été utilisé,
+ * pour qu'il ne puisse pas être réutilisé plus tard dans la partie.
  */
 export async function useHint(
   gameId: string,
