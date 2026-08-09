@@ -15,10 +15,19 @@ export type Team = "blue" | "yellow";
  * Premier arrivé, premier servi : le joueur qui a buzzé dit lui-même si sa
  * réponse est juste ou fausse. 15 mots par tour, un tour par joueur.
  */
-export type GameMode = "classic" | "chrono" | "buzzer";
+export type GameMode = "classic" | "chrono" | "buzzer" | "bombe";
 
 export const BUZZER_WORDS_PER_TURN_OPTIONS = [10, 15, 20] as const;
 export const DEFAULT_BUZZER_WORDS_PER_TURN = 15;
+/** Mode Bombe : équipes façon mode classique, mais chaque tour dure 2 min 30
+ * et passer un mot fait avancer une jauge d'explosion cachée. */
+export const BOMBE_TURN_DURATION_SECONDS = 150;
+/** Nombre de mots suggéré par le raccourci "Bombe" dans le catalogue. */
+export const BOMBE_CATALOG_WORD_COUNT = 60;
+/** Seuil d'explosion tiré au hasard à chaque tour, entre ces deux bornes
+ * incluses (nombre de "Passer" avant que la bombe explose). */
+export const BOMBE_EXPLOSION_MIN_PASSES = 3;
+export const BOMBE_EXPLOSION_MAX_PASSES = 7;
 
 export type GameStatus =
   | "lobby" // salon d'attente, la partie n'a pas démarré
