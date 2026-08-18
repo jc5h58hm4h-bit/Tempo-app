@@ -14,8 +14,11 @@ import { FinalScreen } from "@/components/game/FinalScreen";
 import { PlayerManagementDrawer } from "@/components/game/PlayerManagementDrawer";
 import { BuzzerDescriberScreen } from "@/components/game/BuzzerDescriberScreen";
 import { BuzzerGuesserScreen } from "@/components/game/BuzzerGuesserScreen";
+import { PostitActiveScreen } from "@/components/game/PostitActiveScreen";
+import { PostitSpectatorScreen } from "@/components/game/PostitSpectatorScreen";
 import { startTurn, recordGuessedWord, endTurn, startNextRound, useHint } from "@/app/actions/round-actions";
 import { startBuzzerTurn, pressBuzzer, resolveBuzz, skipBuzzerWord } from "@/app/actions/buzzer-actions";
+import { validatePostitGuess, expirePostitTurn } from "@/app/actions/postit-actions";
 import { markPlayerConnected } from "@/app/actions/game-actions";
 import { CHRONO_MAX_PASSES } from "@/types";
 import type { Game, Player, Round, Word } from "@/types";
@@ -66,6 +69,7 @@ export function GameRoot({
   const currentRound = rounds.find((r) => r.roundNumber === game.currentRound) ?? null;
   const activePlayer = players.find((p) => p.id === game.currentPlayerId) ?? null;
   const isBuzzerMode = game.mode === "buzzer";
+  const isPostitMode = game.mode === "postit";
 
   usePresence(game.id, currentPlayerId);
 
@@ -102,6 +106,13 @@ export function GameRoot({
         return;
       }
       setBuzzerWordQueue(result.data.wordQueue);
+      setTurnPhase("playing");
+      return;
+    }
+
+    if (isPostitMode) {
+      // Le mot est déjà connu (attribué au tout début de la partie) : pas
+      // besoin d'appel serveur, on lance directement le chrono.
       setTurnPhase("playing");
       return;
     }
@@ -165,6 +176,14 @@ export function GameRoot({
   async function handleSkipBuzzerWord() {
     if (!currentRound) return;
     await skipBuzzerWord(game.id, currentRound.id, currentPlayerId);
+  }
+
+  async function handlePostitExpire() {
+    await expirePostitTurn(game.id, currentPlayerId);
+  }
+
+  async function handlePostitValidate(targetPlayerId: string) {
+    await validatePostitGuess(game.id, targetPlayerId, currentPlayerId);
   }
 
   // --- Rendu ---------------------------------------------------------
@@ -270,8 +289,35 @@ export function GameRoot({
       }
     }
 
+    // --- Mode Post-it : chacun a son mot, tour par tour, en boucle -------
+    if (game.status === "in_progress" && currentRound && isPostitMode) {
+      if (isMyTurn) {
+        if (turnPhase === "playing") {
+          return <PostitActiveScreen onExpire={handlePostitExpire} />;
+        }
+        return (
+          <TransitionScreen
+            playerNickname={currentPlayer?.nickname ?? ""}
+            team={null}
+            onReady={handleReady}
+            error={readyError}
+          />
+        );
+      }
+
+      if (activePlayer) {
+        return (
+          <PostitSpectatorScreen
+            activePlayerNickname={activePlayer.nickname}
+            word={activePlayer.postitWord}
+            onValidate={() => handlePostitValidate(activePlayer.id)}
+          />
+        );
+      }
+    }
+
     // --- Modes Classique / Chrono / Bombe --------------------------------
-    if (game.status === "in_progress" && currentRound && !isBuzzerMode) {
+    if (game.status === "in_progress" && currentRound && !isBuzzerMode && !isPostitMode) {
       if (isMyTurn && currentPlayer?.team) {
         if (turnPhase === "playing" && turnData) {
           return (
