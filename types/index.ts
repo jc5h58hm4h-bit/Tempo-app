@@ -5,7 +5,9 @@
 // En mode "chrono", il n'y a qu'un seul tour de 2 minutes par joueur (voir
 // GameMode ci-dessous). En mode "bombe", les équipes et les 2 manches
 // fonctionnent comme en classique, mais chaque tour dure 2 min 30 et passer
-// un mot fait avancer une jauge d'explosion cachée.
+// un mot fait avancer une jauge d'explosion cachée. En mode "postit", chaque
+// joueur a un mot que lui seul ne connaît pas, et doit le deviner grâce aux
+// indices des autres, tour par tour.
 
 export type Team = "blue" | "yellow";
 
@@ -20,8 +22,13 @@ export type Team = "blue" | "yellow";
  * dure 2 min 30 et chaque "Passer" fait avancer une jauge d'explosion
  * cachée : si elle atteint son seuil (tiré au hasard à chaque tour), le
  * tour s'arrête immédiatement, avant même la fin du chrono.
+ * "postit" : chacun a un mot que lui seul ne connaît pas (façon
+ * Inglourious Basterds). Pas d'équipes. Tour par tour, 1 minute : celui
+ * dont c'est le tour essaie de deviner son propre mot grâce aux indices
+ * donnés à voix haute par les autres, qui voient le mot affiché. Le jeu
+ * tourne en boucle jusqu'à ce que tout le monde ait trouvé.
  */
-export type GameMode = "classic" | "chrono" | "buzzer" | "bombe";
+export type GameMode = "classic" | "chrono" | "buzzer" | "bombe" | "postit";
 
 export const BUZZER_WORDS_PER_TURN_OPTIONS = [10, 15, 20] as const;
 export const DEFAULT_BUZZER_WORDS_PER_TURN = 15;
@@ -75,6 +82,9 @@ export const BOMBE_CATALOG_WORD_COUNT = 60;
 export const BOMBE_EXPLOSION_MIN_PASSES = 3;
 export const BOMBE_EXPLOSION_MAX_PASSES = 7;
 
+/** Mode Post-it : 1 minute par tentative, pas d'équipes. */
+export const POSTIT_TURN_DURATION_SECONDS: TurnDurationSeconds = 60;
+
 export interface Game {
   id: string;
   code: string;
@@ -107,6 +117,11 @@ export interface Player {
   isConnected: boolean;
   /** A-t-il déjà utilisé son indice (1 par partie, tous modes confondus) ? */
   hintUsed: boolean;
+  /** Mode Post-it uniquement : le mot qui lui a été attribué (lui seul ne
+   * le connaît pas côté affichage — voir la logique côté client). */
+  postitWord: string | null;
+  /** Mode Post-it uniquement : a-t-il déjà trouvé son mot ? */
+  postitFound: boolean;
 }
 
 export interface Word {
