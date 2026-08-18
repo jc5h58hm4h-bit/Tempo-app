@@ -41,6 +41,8 @@ function mapPlayer(row: any): Player {
     joinedAt: row.joined_at,
     isConnected: row.is_connected,
     hintUsed: row.hint_used,
+    postitWord: row.postit_word,
+    postitFound: row.postit_found,
   };
 }
 
