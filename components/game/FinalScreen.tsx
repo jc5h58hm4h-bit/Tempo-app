@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { replaySameWords, newGameSamePlayers } from "@/app/actions/round-actions";
 import { replaySameWordsBuzzer } from "@/app/actions/buzzer-actions";
+import { replaySameWordsPostit } from "@/app/actions/postit-actions";
 import { clearPlayerSession } from "@/lib/session";
 import { TEAM_LABELS } from "@/lib/constants";
 import { sumRoundScores, determineWinningTeam } from "@/lib/game-rules";
@@ -47,6 +48,7 @@ export function FinalScreen({
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
+    if (gameMode === "buzzer" || gameMode === "postit") return;
     const supabase = getSupabaseBrowserClient();
     supabase
       .from("rounds")
@@ -70,11 +72,10 @@ export function FinalScreen({
   // le ou les coéquipiers qui ont DEVINÉ le mot. Dans une équipe de 2, le mot
   // est donc crédité à l'autre membre de l'équipe ; dans une équipe de 3, il
   // est crédité aux deux autres coéquipiers ; dans une équipe d'1 seul
-  // joueur, les deux rôles se confondent et le mot lui reste crédité. En mode
-  // Buzzer il n'y a pas d'équipes : ce calcul ne sert pas (on utilise
-  // directement le score du joueur, qui cumule déjà ses deux rôles).
+  // joueur, les deux rôles se confondent et le mot lui reste crédité. En
+  // mode Buzzer et Post-it il n'y a pas d'équipes : ce calcul ne sert pas.
   useEffect(() => {
-    if (gameMode === "buzzer") return;
+    if (gameMode === "buzzer" || gameMode === "postit") return;
     const supabase = getSupabaseBrowserClient();
     supabase
       .from("guessed_words")
@@ -110,7 +111,9 @@ export function FinalScreen({
       const result =
         gameMode === "buzzer"
           ? await replaySameWordsBuzzer(gameId, hostPlayerId)
-          : await replaySameWords(gameId, hostPlayerId);
+          : gameMode === "postit"
+            ? await replaySameWordsPostit(gameId, hostPlayerId)
+            : await replaySameWords(gameId, hostPlayerId);
       // La redirection est automatique : GameRoot détecte le changement de
       // statut de la partie ("in_progress") via Realtime et affiche la manche 1.
       if (!result.success) {
@@ -204,6 +207,37 @@ export function FinalScreen({
     );
   }
 
+  // --- Mode Post-it : pas de score, juste la confirmation + les mots -----
+  if (gameMode === "postit") {
+    return (
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-4 px-6 py-10 animate-pop-in">
+        <div className="text-center">
+          <p className="text-4xl">🎉</p>
+          <h2 className="mt-2 font-display text-3xl font-semibold">
+            Bravo, tout le monde a trouvé son mot !
+          </h2>
+        </div>
+
+        <Card className="flex flex-col gap-1.5">
+          <p className="mb-1 text-sm font-medium text-ink/60">Les mots du jour</p>
+          {players.map((player) => (
+            <div
+              key={player.id}
+              className="flex items-center justify-between rounded-xl bg-cream px-3 py-2 text-sm"
+            >
+              <span className="font-medium">{player.nickname}</span>
+              <span className="font-display font-semibold text-blue-deep">
+                {player.postitWord ?? "—"}
+              </span>
+            </div>
+          ))}
+        </Card>
+
+        {actionButtons}
+      </div>
+    );
+  }
+
   // --- Modes Classique / Chrono / Bombe : scores par équipe ---------------
   const { blue: totalBlue, yellow: totalYellow } = sumRoundScores(
     rounds.map((r) => ({ blueTeamScore: r.blueScore, yellowTeamScore: r.yellowScore }))
@@ -218,7 +252,7 @@ export function FinalScreen({
   const bestPlayerCount = bestPlayer ? Math.round(guessedCounts[bestPlayer.id] ?? 0) : 0;
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-4 px-6 py-10 animate-pop-in">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-4 py-10 animate-pop-in px-6">
       <div className="text-center">
         <p className="text-4xl">🏆</p>
         <h2 className="mt-2 font-display text-3xl font-semibold">
