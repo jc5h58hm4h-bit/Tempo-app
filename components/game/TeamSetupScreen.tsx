@@ -10,6 +10,7 @@ import {
   setGameMode,
 } from "@/app/actions/round-actions";
 import { startBuzzerGame, setBuzzerWordsPerTurn } from "@/app/actions/buzzer-actions";
+import { startPostitGame } from "@/app/actions/postit-actions";
 import { TEAM_LABELS } from "@/lib/constants";
 import { BUZZER_WORDS_PER_TURN_OPTIONS } from "@/types";
 import type { GameMode, Player, Team } from "@/types";
@@ -37,6 +38,8 @@ export function TeamSetupScreen({
 
   const teamsAssigned = players.length > 0 && players.every((p) => p.team !== null);
   const isBuzzer = gameMode === "buzzer";
+  const isPostit = gameMode === "postit";
+  const isNoTeamMode = isBuzzer || isPostit;
   const totalWordsNeeded = buzzerWordsPerTurn * Math.max(players.length, 1);
 
   function handleAuto() {
@@ -68,7 +71,9 @@ export function TeamSetupScreen({
     startTransition(async () => {
       const result = isBuzzer
         ? await startBuzzerGame(gameId, hostPlayerId)
-        : await startGameRounds(gameId, hostPlayerId);
+        : isPostit
+          ? await startPostitGame(gameId, hostPlayerId)
+          : await startGameRounds(gameId, hostPlayerId);
       if (!result.success) setError(result.error);
     });
   }
@@ -77,11 +82,11 @@ export function TeamSetupScreen({
     return (
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
         <h2 className="font-display text-2xl font-semibold">
-          {isBuzzer ? "Préparation de la partie" : "Constitution des équipes"}
+          {isNoTeamMode ? "Préparation de la partie" : "Constitution des équipes"}
         </h2>
         <p className="text-ink/60">L&apos;hôte prépare la partie...</p>
         <GameModeBadge mode={gameMode} />
-        {!isBuzzer && <TeamLists players={players} />}
+        {!isNoTeamMode && <TeamLists players={players} />}
       </div>
     );
   }
@@ -89,7 +94,7 @@ export function TeamSetupScreen({
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-4 px-6 py-10">
       <h2 className="text-center font-display text-2xl font-semibold">
-        {isBuzzer ? "Préparation de la partie" : "Constitution des équipes"}
+        {isNoTeamMode ? "Préparation de la partie" : "Constitution des équipes"}
       </h2>
 
       <GameModePicker mode={gameMode} onChange={handleChangeGameMode} disabled={isPending} />
@@ -126,6 +131,26 @@ export function TeamSetupScreen({
                 au total dans la liste.
               </p>
             </div>
+          </Card>
+          <Button variant="yellow" onClick={handleStart} disabled={isPending}>
+            Commencer la partie
+          </Button>
+        </>
+      ) : isPostit ? (
+        <>
+          <Card className="flex flex-col gap-3">
+            <p className="text-sm text-ink/60">
+              Pas d&apos;équipes en mode Post-it : chacun reçoit un mot que lui seul ne
+              connaît pas. Tour par tour, 1 minute pour le deviner grâce aux indices des
+              autres — sinon on tourne au suivant, et on revient à lui plus tard.
+            </p>
+            <p className="text-xs text-ink/40">
+              Il faut au moins{" "}
+              <span className="font-semibold text-ink/60">
+                {players.length} mot{players.length > 1 ? "s" : ""}
+              </span>{" "}
+              dans la liste (un par joueur, jamais deux fois le même).
+            </p>
           </Card>
           <Button variant="yellow" onClick={handleStart} disabled={isPending}>
             Commencer la partie
@@ -232,6 +257,18 @@ function GameModePicker({
           <p className="font-display font-semibold">💣 Bombe</p>
           <p className="text-xs opacity-80">2 min 30, passer fait avancer la jauge</p>
         </button>
+        <button
+          onClick={() => onChange("postit")}
+          disabled={disabled}
+          className={`col-span-2 rounded-2xl px-3 py-3 text-left ${
+            mode === "postit" ? "bg-blue-deep text-cream" : "bg-ink/5 text-ink/60"
+          }`}
+        >
+          <p className="font-display font-semibold">📝 Post-it</p>
+          <p className="text-xs opacity-80">
+            Chacun devine son propre mot, 1 minute par tour, façon "Qui suis-je ?"
+          </p>
+        </button>
       </div>
     </Card>
   );
@@ -239,7 +276,15 @@ function GameModePicker({
 
 function GameModeBadge({ mode }: { mode: GameMode }) {
   const label =
-    mode === "chrono" ? "Chrono" : mode === "buzzer" ? "Buzzer" : mode === "bombe" ? "Bombe" : "Classique";
+    mode === "chrono"
+      ? "Chrono"
+      : mode === "buzzer"
+        ? "Buzzer"
+        : mode === "bombe"
+          ? "Bombe"
+          : mode === "postit"
+            ? "Post-it"
+            : "Classique";
   return (
     <span className="rounded-full bg-ink/5 px-3 py-1 text-sm font-medium text-ink/60">
       Mode : {label}
