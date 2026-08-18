@@ -34,6 +34,8 @@ function mapPlayer(row: any): Player {
     joinedAt: row.joined_at,
     isConnected: row.is_connected,
     hintUsed: row.hint_used,
+    postitWord: row.postit_word,
+    postitFound: row.postit_found,
   };
 }
 
@@ -227,8 +229,9 @@ export async function assignTeamsManual(
 // --- Démarrage des manches --------------------------------------------
 
 /**
- * Change le mode de la partie (classique, chrono, buzzer ou bombe), avant
- * le lancement. Appelée depuis l'écran de constitution des équipes.
+ * Change le mode de la partie (classique, chrono, buzzer, bombe ou
+ * post-it), avant le lancement. Appelée depuis l'écran de constitution
+ * des équipes.
  */
 export async function setGameMode(
   gameId: string,
