@@ -19,6 +19,7 @@ const MODE_LABELS: Record<GameMode, string> = {
   chrono: "Mode Chrono",
   buzzer: "Mode Buzzer",
   bombe: "Mode Bombe",
+  postit: "Mode Post-it",
 };
 
 function computeAverage(wordsGuessed: number, gamesPlayed: number): number {
