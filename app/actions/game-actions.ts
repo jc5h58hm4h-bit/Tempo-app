@@ -136,7 +136,10 @@ export async function joinGame(
     return { success: false, error: "Impossible de vérifier la partie." };
   }
   if (!canJoinGame(existingPlayers.length)) {
-    return { success: false, error: "La partie est déjà complète (4 joueurs max)." };
+    return {
+      success: false,
+      error: `La partie est déjà complète (${GAME_RULES.MAX_PLAYERS} joueurs max).`,
+    };
   }
   const nicknameTaken = existingPlayers.some(
     (p) => p.nickname.trim().toLowerCase() === nickname.toLowerCase()
