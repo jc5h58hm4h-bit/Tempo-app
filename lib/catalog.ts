@@ -1,48 +1,27 @@
 export type CatalogCategory =
-  | "marques"
-  | "jeux_video"
-  | "disney"
-  | "sportifs"
-  | "films_series"
-  | "acteurs"
+  | "cinema"
   | "musique"
-  | "lieux_historiques"
-  | "personnages_historiques"
-  | "personnages_fictifs"
-  | "oeuvres_artistiques"
   | "celebrites"
-  | "capitales_du_monde";
+  | "personnages_fictifs"
+  | "personnages_historiques"
+  | "culture_generale";
 
 export const CATALOG_CATEGORIES: CatalogCategory[] = [
-  "marques",
-  "jeux_video",
-  "disney",
-  "sportifs",
-  "films_series",
-  "acteurs",
+  "cinema",
   "musique",
-  "lieux_historiques",
-  "personnages_historiques",
-  "personnages_fictifs",
-  "oeuvres_artistiques",
   "celebrites",
-  "capitales_du_monde",
+  "personnages_fictifs",
+  "personnages_historiques",
+  "culture_generale",
 ];
 
 export const CATALOG_CATEGORY_LABELS: Record<CatalogCategory, string> = {
-  marques: "Marques",
-  jeux_video: "Jeux vidéo",
-  disney: "Disney",
-  sportifs: "Sportifs",
-  films_series: "Films / Séries / Émissions",
-  acteurs: "Acteurs & actrices",
+  cinema: "Cinéma",
   musique: "Musique",
-  lieux_historiques: "Lieux historiques",
-  personnages_historiques: "Personnages historiques",
-  personnages_fictifs: "Personnages fictifs",
-  oeuvres_artistiques: "Œuvres artistiques",
   celebrites: "Célébrités",
-  capitales_du_monde: "Capitales du monde",
+  personnages_fictifs: "Personnages fictifs",
+  personnages_historiques: "Personnages historiques",
+  culture_generale: "Culture générale",
 };
 
 export type CatalogDifficulty = "facile" | "moyen" | "difficile";
