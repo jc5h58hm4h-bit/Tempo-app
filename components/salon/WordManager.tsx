@@ -17,6 +17,12 @@ interface WordManagerProps {
 }
 
 export function WordManager({ gameId, hostPlayerId, isHost, words }: WordManagerProps) {
+  // Masquée par défaut : une fois les mots piochés, l'hôte ne les voit plus
+  // automatiquement, pour ne pas connaître à l'avance tout ce qui va sortir
+  // en jeu. Il peut la révéler volontairement s'il a besoin de corriger une
+  // faute de frappe ou de retirer un mot précis.
+  const [showWords, setShowWords] = useState(false);
+
   if (!isHost) {
     return (
       <Card className="flex flex-col items-center gap-1 text-center">
@@ -38,26 +44,36 @@ export function WordManager({ gameId, hostPlayerId, isHost, words }: WordManager
           {words.length} mot{words.length > 1 ? "s" : ""}
         </span>
       </div>
-
       <CatalogPicker gameId={gameId} hostPlayerId={hostPlayerId} />
       <SingleWordForm gameId={gameId} hostPlayerId={hostPlayerId} />
-
       {words.length > 0 && (
-        <ul className="flex max-h-56 flex-col gap-1.5 overflow-y-auto">
-          {words.map((word) => (
-            <li
-              key={word.id}
-              className="flex items-center justify-between rounded-xl bg-cream px-3 py-2 text-sm"
-            >
-              <span>{word.content}</span>
-              <RemoveWordButton
-                gameId={gameId}
-                hostPlayerId={hostPlayerId}
-                wordId={word.id}
-              />
-            </li>
-          ))}
-        </ul>
+        <>
+          <button
+            onClick={() => setShowWords((v) => !v)}
+            className="self-start text-sm font-medium text-ink/50 underline underline-offset-2"
+          >
+            {showWords
+              ? "Masquer les mots"
+              : "Afficher les mots (pour corriger une erreur)"}
+          </button>
+          {showWords && (
+            <ul className="flex max-h-56 flex-col gap-1.5 overflow-y-auto">
+              {words.map((word) => (
+                <li
+                  key={word.id}
+                  className="flex items-center justify-between rounded-xl bg-cream px-3 py-2 text-sm"
+                >
+                  <span>{word.content}</span>
+                  <RemoveWordButton
+                    gameId={gameId}
+                    hostPlayerId={hostPlayerId}
+                    wordId={word.id}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </Card>
   );
