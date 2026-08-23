@@ -26,7 +26,7 @@ export const CATALOG_CATEGORY_LABELS: Record<CatalogCategory, string> = {
 
 export type CatalogDifficulty = "facile" | "moyen" | "difficile";
 
-export const CATALOG_DIFFICULTIES: CatalogDifficulty[] = ["facile", "moyen", "difficile"];
+export const CATALOG_DIFFICULTIES: CatalogDifficulty[] = ["facile", "moyen"];
 
 export const CATALOG_DIFFICULTY_LABELS: Record<CatalogDifficulty, string> = {
   facile: "Facile",
