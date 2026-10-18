@@ -1,13 +1,13 @@
 {
   "name": "Tempo",
   "short_name": "Tempo",
-  "description": "Le jeu de mots à faire deviner, entre 2 et 4 joueurs.",
+  "description": "Le jeu de mots à faire deviner, entre 2 et 6 joueurs.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#FAF7F0",
-  "theme_color": "#152A6E",
+  "background_color": "#F5ECD7",
+  "theme_color": "#14224F",
   "lang": "fr",
   "icons": [
     {
