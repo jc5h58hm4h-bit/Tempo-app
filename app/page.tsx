@@ -30,23 +30,31 @@ function HomeScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
   return (
     <div className="flex flex-col items-center gap-10 animate-pop-in">
       {/* Signature : le "code de partie" mis en scène comme un plateau de jeu,
-          composé de tuiles bleues/jaunes en alternance — annonce le concept
-          central de l'app avant même d'expliquer les règles. */}
-      <div className="flex gap-2">
-        {["T", "E", "M", "P", "O"].map((letter, i) => (
-          <div
-            key={i}
-            className={`flex h-12 w-12 items-center justify-center rounded-xl font-display text-xl font-semibold shadow-tile ${
-              i % 2 === 0 ? "bg-blue-deep text-cream" : "bg-yellow-vivid text-ink"
-            }`}
-          >
-            {letter}
-          </div>
-        ))}
+          composé de tuiles bleu nuit / or en alternance, soulignées de trois
+          bandes façon années 70 — annonce le concept central de l'app. */}
+      <div className="flex flex-col items-center gap-5">
+        <div className="flex gap-2">
+          {["T", "E", "M", "P", "O"].map((letter, i) => (
+            <div
+              key={i}
+              className={`flex h-12 w-12 items-center justify-center rounded-xl border-2 border-edge font-display text-2xl shadow-tile ${
+                i % 2 === 0 ? "bg-blue-deep text-cream" : "bg-yellow-vivid text-ink"
+              }`}
+            >
+              {letter}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex w-40 flex-col gap-1" aria-hidden="true">
+          <div className="h-1.5 rounded-full bg-yellow-vivid" />
+          <div className="h-1.5 rounded-full bg-retro-orange" />
+          <div className="h-1.5 rounded-full bg-retro-brick" />
+        </div>
       </div>
 
       <div className="text-center">
-        <h1 className="font-display text-3xl font-semibold text-ink">
+        <h1 className="font-display text-4xl text-ink">
           {APP_NAME}
         </h1>
         <p className="mt-2 text-ink/60">{APP_DESCRIPTION}</p>
@@ -66,7 +74,7 @@ function HomeScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
         compte nécessaire
       </p>
 
-      <Link href="/stats" className="text-sm font-medium text-blue-deep underline">
+      <Link href="/stats" className="text-sm font-medium text-blue-deep underline underline-offset-4">
         🏆 Classement annuel
       </Link>
     </div>
