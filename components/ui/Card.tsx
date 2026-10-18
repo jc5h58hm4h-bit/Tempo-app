@@ -11,12 +11,15 @@ const toneClasses = {
   yellow: "bg-yellow-pale",
 };
 
-/** Grande carte arrondie, brique de base de toute l'interface. */
+/**
+ * Grande carte arrondie, brique de base de toute l'interface.
+ * Contour épais et arête pleine : le même relief rétro que les boutons.
+ */
 export function Card({ className, tone = "cream", ...props }: CardProps) {
   return (
     <div
       className={cn(
-        "rounded-xl2 p-5 shadow-card",
+        "rounded-xl2 border-2 border-edge p-5 shadow-card",
         toneClasses[tone],
         className
       )}
