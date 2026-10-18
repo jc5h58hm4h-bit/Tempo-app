@@ -9,12 +9,17 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: Size;
 }
 
+// Style rétro : contour épais + arête pleine en dessous (relief "touche de
+// clavier"). Au clic, le bouton s'enfonce et l'arête se réduit.
+const raised =
+  "border-2 border-edge shadow-card active:translate-y-[3px] active:shadow-pressed";
+
 const variantClasses: Record<Variant, string> = {
-  primary: "bg-blue-deep text-cream hover:bg-blue-DEFAULT active:translate-y-[2px]",
-  secondary: "bg-blue-pale text-blue-deep hover:bg-blue-light/30 active:translate-y-[2px]",
-  yellow: "bg-yellow-vivid text-ink hover:brightness-95 active:translate-y-[2px]",
-  ghost: "bg-transparent text-ink hover:bg-ink/5",
-  danger: "bg-red-600 text-white hover:bg-red-700 active:translate-y-[2px]",
+  primary: `${raised} bg-blue-deep text-cream hover:bg-blue`,
+  secondary: `${raised} bg-blue-pale text-blue-deep hover:bg-blue-light/30`,
+  yellow: `${raised} bg-yellow-vivid text-ink hover:brightness-95`,
+  ghost: "border-2 border-transparent bg-transparent text-ink hover:bg-ink/5",
+  danger: `${raised} bg-red-600 text-white hover:bg-red-700`,
 };
 
 const sizeClasses: Record<Size, string> = {
@@ -24,8 +29,8 @@ const sizeClasses: Record<Size, string> = {
 
 /**
  * Bouton large et arrondi, pensé pour être touché confortablement
- * d'une seule main sur mobile. Un léger décalage vertical au clic
- * simule un effet "carte de jeu" sans animation longue.
+ * d'une seule main sur mobile. Le relief rétro (contour + arête pleine)
+ * s'enfonce au clic, comme une vraie touche.
  */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "primary", size = "lg", disabled, ...props }, ref) => {
@@ -34,7 +39,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled}
         className={cn(
-          "w-full rounded-2xl font-display font-medium shadow-card transition-all duration-150",
+          "w-full rounded-2xl font-display transition-all duration-150",
           "disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed disabled:active:translate-y-0",
           variantClasses[variant],
           sizeClasses[size],
