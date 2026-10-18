@@ -1,13 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Fredoka, Inter } from "next/font/google";
+import { Righteous, Inter } from "next/font/google";
 import { APP_NAME, APP_DESCRIPTION } from "@/lib/constants";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import "./globals.css";
 
-const fredoka = Fredoka({
+// Righteous : police ronde "affiche des années 70", uniquement en graisse normale.
+const righteous = Righteous({
   subsets: ["latin"],
-  variable: "--font-fredoka",
-  weight: ["500", "600", "700"],
+  variable: "--font-righteous",
+  weight: "400",
 });
 
 const inter = Inter({
@@ -38,7 +39,11 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover", // nécessaire pour gérer l'encoche / Dynamic Island
-  themeColor: "#152A6E",
+  // Couleur de la barre du navigateur : papier crème en clair, nuit en sombre.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F5ECD7" },
+    { media: "(prefers-color-scheme: dark)", color: "#0A1030" },
+  ],
 };
 
 export default function RootLayout({
@@ -47,7 +52,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" className={`${fredoka.variable} ${inter.variable}`}>
+    <html lang="fr" className={`${righteous.variable} ${inter.variable}`}>
       <body className="min-h-screen bg-cream font-sans text-ink antialiased">
         <RegisterServiceWorker />
         {children}
