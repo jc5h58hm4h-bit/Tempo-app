@@ -28,10 +28,10 @@ export async function createGame(
 
   const supabase = getSupabaseServerClient();
 
-  // Génère un code unique (quelques tentatives en cas de collision, rare
-  // vu l'espace de ~33^6 combinaisons mais on reste défensif).
+    // Génère un code unique à 6 chiffres. En cas de collision (une chance sur
+  // 900 000 par partie existante), on retire un autre code, jusqu'à 10 fois.
   let code = "";
-  for (let attempt = 0; attempt < 5; attempt++) {
+  for (let attempt = 0; attempt < 10; attempt++) {
     const candidate = generateGameCode();
     const { data: existing } = await supabase
       .from("games")
