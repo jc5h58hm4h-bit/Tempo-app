@@ -40,7 +40,7 @@ export function Timer({ durationSeconds, isRunning, onExpire }: TimerProps) {
 
   return (
     <div
-      className={`rounded-full px-5 py-2 text-center font-display text-2xl font-semibold tabular-nums ${
+      className={`rounded-full border-2 border-edge px-5 py-2 text-center font-display text-2xl tabular-nums shadow-tile ${
         isUrgent ? "bg-red-600 text-white" : "bg-blue-deep text-cream"
       }`}
     >
