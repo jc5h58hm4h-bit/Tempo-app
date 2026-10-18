@@ -2,6 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ------------------------------------------------------------------
+   Palette Tempo — rétro années 70-80, bleu nuit et or.
+   Chaque couleur est un triplet "R G B" (sans virgules) pour que Tailwind
+   puisse y appliquer une opacité (text-ink/60, etc.).
+   Le mode sombre suit automatiquement le réglage du téléphone.
+------------------------------------------------------------------- */
+:root {
+  color-scheme: light dark;
+
+  --c-cream: 245 236 215;       /* #F5ECD7 papier crème : fond général */
+  --c-surface: 255 249 234;     /* #FFF9EA parchemin : cartes et champs */
+  --c-ink: 16 26 61;            /* #101A3D bleu nuit presque noir : texte */
+  --c-blue-deep: 20 34 79;      /* #14224F bleu nuit : boutons principaux */
+  --c-blue: 42 63 143;          /* #2A3F8F survol, focus */
+  --c-blue-light: 124 147 224;  /* #7C93E0 */
+  --c-blue-pale: 220 227 245;   /* #DCE3F5 fonds équipe bleue */
+  --c-yellow: 242 179 27;       /* #F2B31B or moutarde */
+  --c-yellow-pale: 251 231 168; /* #FBE7A8 fonds équipe jaune */
+  --c-edge: 16 26 61;           /* contours et arêtes (relief) */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-cream: 10 16 48;        /* #0A1030 nuit profonde : fond général */
+    --c-surface: 20 28 70;      /* #141C46 cartes et champs */
+    --c-ink: 245 236 215;       /* #F5ECD7 texte crème */
+    --c-blue-deep: 157 176 255; /* #9DB0FF bleu clair lumineux */
+    --c-blue: 122 144 240;      /* #7A90F0 */
+    --c-blue-light: 90 110 200; /* #5A6EC8 */
+    --c-blue-pale: 27 39 96;    /* #1B2760 fonds équipe bleue */
+    --c-yellow: 242 179 27;     /* l'or reste l'or */
+    --c-yellow-pale: 58 46 14;  /* #3A2E0E or sombre : fonds équipe jaune */
+    --c-edge: 61 78 168;        /* #3D4EA8 arêtes bleu moyen */
+  }
+}
+
 html,
 body {
   overscroll-behavior-y: none;
@@ -18,4 +54,46 @@ body {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+}
+
+/* ------------------------------------------------------------------
+   Ajustements propres à la direction rétro
+------------------------------------------------------------------- */
+
+/* Cartes et champs "blancs" : parchemin en clair, bleu nuit en sombre. */
+.bg-white {
+  background-color: rgb(var(--c-surface));
+}
+
+/* Texte crème fixe : reste clair dans les deux modes (ex: sur un bouton rouge). */
+.text-cream {
+  color: #f5ecd7;
+}
+
+/* Righteous n'existe qu'en graisse normale : on empêche les navigateurs de
+   fabriquer un faux gras, qui déformerait les lettres. */
+.font-display {
+  font-weight: 400 !important;
+  font-synthesis: none;
+  letter-spacing: 0.01em;
+}
+
+/* Sélection de texte aux couleurs du jeu */
+::selection {
+  background: #f2b31b;
+  color: #101a3d;
+}
+
+/* Mode sombre : le texte posé sur un fond bleu clair ou or doit rester foncé
+   pour être lisible, quelle que soit la classe de texte utilisée dessus. */
+@media (prefers-color-scheme: dark) {
+  .bg-blue-deep,
+  .bg-yellow-vivid {
+    color: #0a1030;
+  }
+
+  /* Rouge d'erreur plus clair pour rester lisible sur fond sombre */
+  .text-red-600 {
+    color: #ff8a80;
+  }
 }
