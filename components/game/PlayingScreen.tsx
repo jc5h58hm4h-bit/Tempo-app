@@ -22,7 +22,7 @@ interface PlayingScreenProps {
   initialQueue: WordQueueItem[];
   blueScore: number;
   yellowScore: number;
-  /** Nombre de passes maximum pour ce tour. undefined = illimité (mode classique et bombe). */
+  /** Nombre de passes maximum pour ce tour. undefined = illimité (mode classique et bombe). En mode classique, un mot passé ne revient jamais pendant le tour et le dernier mot de la pile ne peut pas être passé. */
   maxPasses?: number;
   /** Mode classique uniquement : ce joueur a-t-il déjà utilisé son indice ? */
   hintUsed?: boolean;
@@ -65,6 +65,7 @@ export function PlayingScreen({
   const isSubmittingRef = useRef(false);
 
   const isBombe = mode === "bombe";
+  const isClassic = mode === "classic";
   // Seuil d'explosion tiré une seule fois au tout début du tour, et jamais
   // révélé au joueur : c'est ce qui crée la tension du mode Bombe. Comme ce
   // composant est remonté à neuf à chaque nouveau tour (voir GameRoot), ce
@@ -100,6 +101,8 @@ export function PlayingScreen({
     isSubmittingRef.current = true;
     try {
       const wordToSubmit = currentWord;
+      // Mode classique : est-ce le tout dernier mot de la pile de ce tour ?
+      const isLastWordOfPile = queue.length === 1;
       const result = await onWordFound(wordToSubmit);
       if (!result.success) {
         // Échec réel (réseau, ou tentative en double déjà enregistrée) :
@@ -116,6 +119,14 @@ export function PlayingScreen({
         isBlockedRef.current = true;
         setIsBlocked(true);
         onTurnEnd(foundWordsRef.current, true);
+      } else if (isClassic && isLastWordOfPile) {
+        // Mode classique : les mots passés ne reviennent pas, donc il n'y a
+        // plus aucun mot à montrer pendant ce tour. Le tour s'arrête ici ;
+        // les mots passés restent dans la pile de la manche pour les
+        // joueurs suivants.
+        isBlockedRef.current = true;
+        setIsBlocked(true);
+        onTurnEnd(foundWordsRef.current, false);
       }
     } finally {
       isSubmittingRef.current = false;
@@ -123,7 +134,9 @@ export function PlayingScreen({
   }
 
   function handlePass() {
-    if (!currentWord || isBlockedRef.current || queue.length <= 1) return;
+    if (!currentWord || isBlockedRef.current || isSubmittingRef.current) return;
+    // Le dernier mot de la pile ne peut jamais être passé.
+    if (queue.length <= 1) return;
     if (passLimitReached) return;
 
     const nextPassesUsed = passesUsed + 1;
@@ -140,6 +153,11 @@ export function PlayingScreen({
     }
 
     setQueue((q) => {
+      // Mode classique : le mot passé sort définitivement de la pile pour ce
+      // tour. Impossible d'y revenir une fois la pile terminée : sans ça,
+      // les joueurs retenaient les mots passés pour les reprendre à la fin.
+      if (isClassic) return q.slice(1);
+      // Autres modes : le mot passé repart au bas de la pile.
       const [first, ...rest] = q;
       return first ? [...rest, first] : q;
     });
@@ -178,6 +196,14 @@ export function PlayingScreen({
       {maxPasses !== undefined && (
         <p className="text-center text-xs text-ink/40">
           Passes restantes : {Math.max(0, maxPasses - passesUsed)} / {maxPasses}
+        </p>
+      )}
+
+      {isClassic && (
+        <p className="text-center text-xs text-ink/40">
+          {queue.length > 1
+            ? `Mots restants dans la pile : ${queue.length}`
+            : "Dernier mot de la pile : tu ne peux plus passer."}
         </p>
       )}
 
